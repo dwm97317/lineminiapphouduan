@@ -729,6 +729,7 @@ class Index extends Controller
           'updated_time' => getTime(),
           'status' => 1,
           'source' => 1,
+          'operate_id' => 0,
           'wxapp_id' => (new Package())->getWxappId(),
           'line_id' => $line_id,
         ];

@@ -265,8 +265,10 @@
                                         <span style="cursor:pointer" text="<?= $item['t_order_sn'] ?>" onclick="copyUrl2(this)"><?= $item['t_order_sn'] ?></span></br>
                                         <?php endif ;?>
                                         <?php if (!empty($item['t2_order_sn'])): ?> 
-                                        转单单号:
-                                        <span style="cursor:pointer" text="<?= $item['t2_order_sn'] ?>" onclick="copyUrl2(this)"><?= $item['t2_order_sn'] ?></span></br>
+                                        <span style="color:#ff6666;">转单承运商:
+                                        <span style="cursor:pointer" text="<?= $item['t2_name'] ?>" onclick="copyUrl2(this)"><?= $item['t2_name'] ?></span></span></br>
+                                        <span style="color:#ff6666;">转单单号:
+                                        <span style="cursor:pointer" text="<?= $item['t2_order_sn'] ?>" onclick="copyUrl2(this)"><?= $item['t2_order_sn'] ?></span></span></br>
                                         <?php endif ;?>
                                         线路:
                                         <span style="cursor:pointer" text="<?= $item['line']['name'] ?>" onclick="copyUrl2(this)"><?= $item['line']['name'] ?></span></br>
@@ -304,9 +306,9 @@
                                         市：<?= $item['address']['city'] ?><span style="color:#ff6666;cursor:pointer" text="<?= $item['address']['city'];?>" onclick="copyUrl2(this)">[复制]</span></br>
                                         <?php endif ;?>
                                         <!--区：<?= $item['address']['region']=='0'?'未填':$item['address']['region']?></br>-->
-                                        <?php if ($set['address_setting']['is_street']==1): ?>
-                                        街道：<?= $item['address']['street']=='0'?'未填':$item['address']['street']?><span style="color:#ff6666;cursor:pointer" text="<?= $item['address']['street'];?>" onclick="copyUrl2(this)">[复制]</span>
-                                        <?php endif ;?>
+                                         <?php if ($set['address_setting']['is_street']==1): ?>
+                                         街道：<?= !isset($item['address']['street']) || $item['address']['street']==''?'未填':$item['address']['street']?><span style="color:#ff6666;cursor:pointer" text="<?= !isset($item['address']['street']) ? '' : $item['address']['street'];?>" onclick="copyUrl2(this)">[复制]</span></br>
+                                         <?php endif ;?>
                                         <?php if ($set['address_setting']['is_door']==1): ?> 
                                         门牌：<?= $item['address']['door'] ?><span style="color:#ff6666;cursor:pointer" text="<?= $item['address']['door'];?>" onclick="copyUrl2(this)">[复制]</span></br>
                                          <?php endif ;?>

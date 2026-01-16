@@ -13,6 +13,7 @@ use app\common\exception\BaseException;
 class Wxapp extends BaseModel
 {
     protected $name = 'wxapp';
+    protected $pk = 'wxapp_id';
     
     /**
      * 隐藏字段

@@ -86,7 +86,11 @@ class UserAddress extends UserAddressModel
                 'country_id' => isset($data['country_id'])?$data['country_id']:'',
                 'province' => isset($region[1])?$region[1]:'',
                 'city' => isset($region[2])?$region[2]:'',
-                'region' => isset($region[3])?$region:0,
+                'region' => isset($region[3])?$region[3]:0,
+                'sub_district' => isset($data['sub_district'])?$data['sub_district']:'',
+                'latitude' => isset($data['latitude'])?$data['latitude']:0,
+                'longitude' => isset($data['longitude'])?$data['longitude']:0,
+                'postal_code' => isset($data['postal_code'])?$data['postal_code']:'',
                 'email' => isset($data['email'])?$data['email']:'',
                 'door' => isset($data['door'])?$data['door']:'',
                 'code' => isset($data['code'])?$data['code']:'',
@@ -121,7 +125,11 @@ class UserAddress extends UserAddressModel
                 'clearancecode'=>isset($data['clearancecode'])?$data['clearancecode']:'',
                 'province' => isset($region[1])?$region[1]:'',
                 'city' => isset($region[2])?$region[2]:'',
-                'region' => isset($region[3])?$region:0,
+                'region' => isset($region[3])?$region[3]:0,
+                'sub_district' => isset($data['sub_district'])?$data['sub_district']:'',
+                'latitude' => isset($data['latitude'])?$data['latitude']:0,
+                'longitude' => isset($data['longitude'])?$data['longitude']:0,
+                'postal_code' => isset($data['postal_code'])?$data['postal_code']:'',
                 'email' => isset($data['email'])?$data['email']:'',
                 'street' => isset($data['userstree'])?$data['userstree']:'',
                 'door' => isset($data['door'])?$data['door']:'',
@@ -129,6 +137,7 @@ class UserAddress extends UserAddressModel
                 'detail' => isset($data['detail'])?$data['detail']:'',
             ]) !== false;
     }
+
 
 
     /**

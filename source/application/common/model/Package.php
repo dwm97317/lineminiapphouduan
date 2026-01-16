@@ -25,10 +25,38 @@ class Package extends BaseModel
     
         foreach ($orderList as $item) {
         
+            // 发送微信通知（保留原有功能）
             MessageService::send('order.enter', [
                 'order' => $item,
                 'order_type' => OrderTypeEnum::MASTER,
             ]);
+            
+            // 发送LINE通知
+            try {
+                // 如果传入的是数组，需要加载图片关联数据
+                if (is_array($item) && isset($item['id'])) {
+                    $packageWithImages = self::with(['packageimage' => function($query) {
+                        $query->with('file');
+                    }])->find($item['id']);
+                    
+                    if ($packageWithImages && !empty($packageWithImages['packageimage'])) {
+                        // 将图片数据添加到item中
+                        $item['packageimage'] = $packageWithImages['packageimage']->toArray();
+                    }
+                }
+                
+                $lineService = new \app\common\service\message\line\Inwarehouse();
+                $lineService->send($item);
+            } catch (\Exception $e) {
+                // 记录错误但不影响主流程
+                log_write([
+                    'describe' => 'LINE入库通知发送失败',
+                    'package_id' => $item['id'] ?? 0,
+                    'member_id' => $item['member_id'] ?? 0,
+                    'error' => $e->getMessage(),
+                    'time' => date('Y-m-d H:i:s')
+                ]);
+            }
            
         }
            

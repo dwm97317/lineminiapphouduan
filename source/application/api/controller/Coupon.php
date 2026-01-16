@@ -41,5 +41,28 @@ class Coupon extends Controller
         $list = $model->getUserCouponList($this->getUser(false)['user_id'],$free);
         return $this->renderSuccess(compact('list'));
     }
+    
+    /**
+     * 领取优惠券
+     * @return array
+     * @throws \app\common\exception\BaseException
+     * @throws \think\exception\DbException
+     */
+    public function receive()
+    {
+        $coupon_id = input('coupon_id');
+        if (!$coupon_id) {
+            return $this->renderError('缺少优惠券ID');
+        }
+        
+        $model = new UserCoupon;
+        $user = $this->getUser();
+        
+        if ($model->receive($user, $coupon_id)) {
+            return $this->renderSuccess([], '领取成功');
+        }
+        
+        return $this->renderError($model->getError() ?: '领取失败');
+    }
 
 }

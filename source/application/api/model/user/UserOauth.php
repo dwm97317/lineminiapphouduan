@@ -11,12 +11,13 @@ use app\common\model\user\UserOauth as UserOauthModel;
  */
 class UserOauth extends UserOauthModel
 {
-    
-    public static function getUserIdByOauthId($oauthId){
-        return (new static())->where(['oauth_id'=>$oauthId])->value('user_id');
+    protected $name = 'user_binding';
+
+    public static function getUserIdByOauthId($oauthId, $oauthType){
+        return (new static())->where(['openid'=>$oauthId, 'platform'=>$oauthType])->value('user_id');
     }
-    
+
     public static function getOauthIdByUserId($userId){
-        return (new static())->where(['user_id'=>$userId])->value('oauth_id');
+        return (new static())->where(['user_id'=>$userId])->value('openid');
     }
 }

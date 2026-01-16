@@ -13,6 +13,9 @@ use app\common\library\helper;
  */
 class Certificate extends CertificateModel
 {
+    // Disable automatic timestamp handling since database has DEFAULT CURRENT_TIMESTAMP
+    protected $autoWriteTimestamp = false;
+    
     /**
      * 关联用户表
      * @return \think\model\relation\BelongsTo
@@ -40,7 +43,7 @@ class Certificate extends CertificateModel
                 'cert_id' => $certId,
                 'image_id' => $imageId,
                 'wxapp_id' => self::$wxapp_id,
-                'create_time'=> time()
+                'create_time'=> date("Y-m-d H:i:s"), // DATETIME format for certificate_image table
             ];
         }
        
@@ -62,11 +65,11 @@ class Certificate extends CertificateModel
           'cert_price' => isset($post['amount'])?$post['amount']:0,
           'cert_bank' => isset($post['bank_name'])?$post['bank_name']:'',
           'cert_type' => isset($post['coin_type'])?$post['coin_type']:'',
-          'cert_date' => isset($post['dates'])?$post['dates']:date("Y/m/d H:i:s"),
+          'cert_date' => isset($post['dates'])?$post['dates']:date("Y-m-d H:i:s"),
           'user_id' => $post['user_id'],
           'wxapp_id'=> self::$wxapp_id,
-          'create_time'=>time(),
-          'update_time'=>time(),
+          'create_time'=> time(), // Unix timestamp
+          'update_time'=> time(), // Unix timestamp
         ];
        $res = $this->insertGetId($data);
        $imageIda = $post['imageIds'];

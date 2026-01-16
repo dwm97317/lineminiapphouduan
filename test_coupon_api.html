@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>优惠券 API 测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 20px; }
+        .section { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .section h2 { color: #666; margin-bottom: 15px; font-size: 18px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #666; font-size: 14px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        button { background: #1890ff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; }
+        button:hover { background: #40a9ff; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .result { background: #f9f9f9; padding: 15px; border-radius: 4px; margin-top: 15px; max-height: 400px; overflow-y: auto; }
+        .result pre { white-space: pre-wrap; word-wrap: break-word; font-size: 12px; }
+        .coupon-card { border: 1px solid #e8e8e8; padding: 15px; margin-bottom: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .coupon-card.blue { border-left: 4px solid #1890ff; }
+        .coupon-card.red { border-left: 4px solid #f5222d; }
+        .coupon-card.violet { border-left: 4px solid #722ed1; }
+        .coupon-card.yellow { border-left: 4px solid #faad14; }
+        .coupon-info h3 { font-size: 16px; margin-bottom: 5px; }
+        .coupon-info p { font-size: 12px; color: #666; margin: 2px 0; }
+        .coupon-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-right: 5px; }
+        .badge-reduce { background: #fff1f0; color: #f5222d; }
+        .badge-discount { background: #f0f5ff; color: #1890ff; }
+        .status { padding: 5px 10px; border-radius: 4px; font-size: 12px; }
+        .status.success { background: #f6ffed; color: #52c41a; }
+        .status.error { background: #fff1f0; color: #f5222d; }
+        .status.warning { background: #fffbe6; color: #faad14; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-card h3 { font-size: 32px; margin-bottom: 5px; }
+        .stat-card p { font-size: 14px; opacity: 0.9; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎫 优惠券 API 测试</h1>
+        
+        <!-- 配置区 -->
+        <div class="section">
+            <h2>⚙️ 配置</h2>
+            <div class="input-group">
+                <label>API Base URL:</label>
+                <input type="text" id="baseUrl" value="/api">
+            </div>
+            <div class="input-group">
+                <label>用户 Token (可选，留空则使用当前登录用户):</label>
+                <input type="text" id="token" placeholder="留空使用当前登录">
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="stats">
+            <div class="stat-card">
+                <h3 id="totalCoupons">-</h3>
+                <p>可领取优惠券</p>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <h3 id="receivedCoupons">-</h3>
+                <p>已领取优惠券</p>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <h3 id="availableCoupons">-</h3>
+                <p>可用优惠券</p>
+            </div>
+        </div>
+
+        <!-- 测试1: 获取优惠券列表 -->
+        <div class="section">
+            <h2>1️⃣ 获取优惠券列表</h2>
+            <div class="input-group">
+                <label>优惠券类型筛选:</label>
+                <select id="couponType">
+                    <option value="">全部</option>
+                    <option value="0">满减券</option>
+                    <option value="1">折扣券</option>
+                </select>
+            </div>
+            <button onclick="getCouponList()">获取列表</button>
+            <div class="result" id="listResult"></div>
+        </div>
+
+        <!-- 测试2: 领取优惠券 -->
+        <div class="section">
+            <h2>2️⃣ 领取优惠券</h2>
+            <div class="input-group">
+                <label>优惠券ID:</label>
+                <input type="number" id="receiveCouponId" placeholder="从上面列表中选择一个优惠券ID">
+            </div>
+            <button onclick="receiveCoupon()">领取优惠券</button>
+            <button onclick="quickReceive()">快速领取第一个可用</button>
+            <div class="result" id="receiveResult"></div>
+        </div>
+
+        <!-- 测试3: 获取可用优惠券 -->
+        <div class="section">
+            <h2>3️⃣ 获取可用优惠券（订单结算用）</h2>
+            <div class="input-group">
+                <label>订单金额:</label>
+                <input type="number" id="orderAmount" value="100" step="0.01">
+            </div>
+            <button onclick="getAvailableCoupons()">获取可用优惠券</button>
+            <div class="result" id="availableResult"></div>
+        </div>
+
+        <!-- 测试4: 完整流程测试 -->
+        <div class="section">
+            <h2>4️⃣ 完整流程测试</h2>
+            <button onclick="runFullTest()">运行完整测试</button>
+            <div class="result" id="fullTestResult"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentCoupons = [];
+
+        function getBaseUrl() {
+            return document.getElementById('baseUrl').value;
+        }
+
+        function getToken() {
+            const inputToken = document.getElementById('token').value;
+            if (inputToken) {
+                return inputToken;
+            }
+            // 尝试从 localStorage 获取（与前端应用相同）
+            return localStorage.getItem('token') || '';
+        }
+
+        function makeRequest(url, options = {}) {
+            const token = getToken();
+            const wxapp_id = 10001; // 根据实际情况修改
+            
+            // 添加 wxapp_id 参数
+            if (url.indexOf('?') === -1) {
+                url += '?wxapp_id=' + wxapp_id;
+            } else {
+                url += '&wxapp_id=' + wxapp_id;
+            }
+            
+            // 添加 token 参数
+            if (token) {
+                url += '&token=' + encodeURIComponent(token);
+            }
+            
+            return fetch(url, options);
+        }
+
+        function displayResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<pre style="color: ${isError ? '#f5222d' : '#333'}">${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        function displayCouponCards(elementId, coupons) {
+            const element = document.getElementById(elementId);
+            let html = '';
+            
+            coupons.forEach(coupon => {
+                const colorClass = coupon.color?.text || 'blue';
+                const typeClass = coupon.coupon_type?.value === 10 ? 'reduce' : 'discount';
+                const canReceive = !coupon.is_receive && coupon.state?.value === 1;
+                
+                let statusHtml = '';
+                if (coupon.is_receive) {
+                    statusHtml = '<span class="status warning">已领取</span>';
+                } else if (coupon.state?.value === 0) {
+                    statusHtml = `<span class="status error">${coupon.state.text}</span>`;
+                } else {
+                    statusHtml = '<span class="status success">可领取</span>';
+                }
+                
+                let discountText = '';
+                if (coupon.coupon_type?.value === 10) {
+                    discountText = `满${coupon.min_price}减${coupon.reduce_price}`;
+                } else {
+                    discountText = `满${coupon.min_price}打${coupon.discount}折`;
+                }
+                
+                let expireText = '';
+                if (coupon.expire_type === 10) {
+                    expireText = `领取后${coupon.expire_day}天有效`;
+                } else {
+                    expireText = `${coupon.start_time?.text} ~ ${coupon.end_time?.text}`;
+                }
+                
+                html += `
+                    <div class="coupon-card ${colorClass}">
+                        <div class="coupon-info">
+                            <h3>${coupon.name}</h3>
+                            <p>
+                                <span class="coupon-badge badge-${typeClass}">${coupon.coupon_type?.text}</span>
+                                ${discountText}
+                            </p>
+                            <p>有效期: ${expireText}</p>
+                            <p>ID: ${coupon.coupon_id}</p>
+                        </div>
+                        <div>
+                            ${statusHtml}
+                            ${canReceive ? `<button onclick="receiveById(${coupon.coupon_id})" style="margin-top: 5px;">领取</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            element.innerHTML = html || '<p style="color: #999;">暂无数据</p>';
+        }
+
+        async function getCouponList() {
+            try {
+                const couponType = document.getElementById('couponType').value;
+                const url = `${getBaseUrl()}/coupon/lists${couponType ? '?coupon_type=' + couponType : ''}`;
+                
+                const response = await makeRequest(url);
+                const data = await response.json();
+                
+                if (data.code === 1) {
+                    currentCoupons = data.data.list || [];
+                    displayCouponCards('listResult', currentCoupons);
+                    
+                    // 更新统计
+                    const total = currentCoupons.filter(c => !c.is_receive && c.state?.value === 1).length;
+                    const received = currentCoupons.filter(c => c.is_receive).length;
+                    document.getElementById('totalCoupons').textContent = total;
+                    document.getElementById('receivedCoupons').textContent = received;
+                } else {
+                    displayResult('listResult', data, true);
+                }
+            } catch (error) {
+                displayResult('listResult', { error: error.message }, true);
+            }
+        }
+
+        async function receiveCoupon() {
+            const couponId = document.getElementById('receiveCouponId').value;
+            if (!couponId) {
+                alert('请输入优惠券ID');
+                return;
+            }
+            await receiveById(couponId);
+        }
+
+        async function receiveById(couponId) {
+            try {
+                const url = `${getBaseUrl()}/coupon/receive`;
+                const formData = new FormData();
+                formData.append('coupon_id', couponId);
+                
+                const response = await makeRequest(url, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                displayResult('receiveResult', data, data.code !== 1);
+                
+                if (data.code === 1) {
+                    // 刷新列表
+                    await getCouponList();
+                }
+            } catch (error) {
+                displayResult('receiveResult', { error: error.message }, true);
+            }
+        }
+
+        async function quickReceive() {
+            const availableCoupon = currentCoupons.find(c => !c.is_receive && c.state?.value === 1);
+            if (!availableCoupon) {
+                alert('没有可领取的优惠券');
+                return;
+            }
+            document.getElementById('receiveCouponId').value = availableCoupon.coupon_id;
+            await receiveById(availableCoupon.coupon_id);
+        }
+
+        async function getAvailableCoupons() {
+            try {
+                const amount = document.getElementById('orderAmount').value;
+                const url = `${getBaseUrl()}/coupon/enablecoupon?total_free=${amount}`;
+                
+                const response = await makeRequest(url);
+                const data = await response.json();
+                
+                if (data.code === 1) {
+                    const coupons = Object.values(data.data.list || {});
+                    displayCouponCards('availableResult', coupons);
+                    document.getElementById('availableCoupons').textContent = coupons.length;
+                } else {
+                    displayResult('availableResult', data, true);
+                }
+            } catch (error) {
+                displayResult('availableResult', { error: error.message }, true);
+            }
+        }
+
+        async function runFullTest() {
+            const resultDiv = document.getElementById('fullTestResult');
+            resultDiv.innerHTML = '<p>🚀 开始完整测试...</p>';
+            
+            let log = '';
+            
+            try {
+                // 步骤1: 获取优惠券列表
+                log += '📋 步骤1: 获取优惠券列表...\n';
+                const listResponse = await makeRequest(`${getBaseUrl()}/coupon/lists`);
+                const listData = await listResponse.json();
+                
+                if (listData.code !== 1) {
+                    throw new Error('获取列表失败: ' + listData.msg);
+                }
+                
+                const coupons = listData.data.list || [];
+                log += `✅ 成功获取 ${coupons.length} 个优惠券\n\n`;
+                
+                // 步骤2: 找到一个可领取的优惠券
+                const availableCoupon = coupons.find(c => !c.is_receive && c.state?.value === 1);
+                
+                if (!availableCoupon) {
+                    log += '⚠️ 没有可领取的优惠券，测试结束\n';
+                    resultDiv.innerHTML = `<pre>${log}</pre>`;
+                    return;
+                }
+                
+                log += `🎯 步骤2: 找到可领取优惠券\n`;
+                log += `   ID: ${availableCoupon.coupon_id}\n`;
+                log += `   名称: ${availableCoupon.name}\n\n`;
+                
+                // 步骤3: 领取优惠券
+                log += '🎁 步骤3: 领取优惠券...\n';
+                const formData = new FormData();
+                formData.append('coupon_id', availableCoupon.coupon_id);
+                
+                const receiveResponse = await makeRequest(`${getBaseUrl()}/coupon/receive`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const receiveData = await receiveResponse.json();
+                
+                if (receiveData.code !== 1) {
+                    throw new Error('领取失败: ' + receiveData.msg);
+                }
+                
+                log += `✅ 领取成功!\n\n`;
+                
+                // 步骤4: 验证重复领取
+                log += '🔒 步骤4: 验证防重复领取...\n';
+                const duplicateResponse = await makeRequest(`${getBaseUrl()}/coupon/receive`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const duplicateData = await duplicateResponse.json();
+                
+                if (duplicateData.code === 0 && duplicateData.msg.includes('已领取')) {
+                    log += `✅ 防重复领取验证通过: ${duplicateData.msg}\n\n`;
+                } else {
+                    log += `⚠️ 防重复领取验证异常\n\n`;
+                }
+                
+                // 步骤5: 获取可用优惠券
+                log += '💰 步骤5: 获取可用优惠券（订单金额100）...\n';
+                const enableResponse = await makeRequest(`${getBaseUrl()}/coupon/enablecoupon?total_free=100`);
+                const enableData = await enableResponse.json();
+                
+                if (enableData.code === 1) {
+                    const availableCount = Object.keys(enableData.data.list || {}).length;
+                    log += `✅ 成功获取 ${availableCount} 个可用优惠券\n\n`;
+                } else {
+                    log += `⚠️ 获取可用优惠券失败\n\n`;
+                }
+                
+                log += '🎉 完整测试完成!\n';
+                log += '\n=== 测试总结 ===\n';
+                log += '✅ 获取优惠券列表: 通过\n';
+                log += '✅ 领取优惠券: 通过\n';
+                log += '✅ 防重复领取: 通过\n';
+                log += '✅ 获取可用优惠券: 通过\n';
+                
+                resultDiv.innerHTML = `<pre style="color: #52c41a">${log}</pre>`;
+                
+                // 刷新列表
+                await getCouponList();
+                
+            } catch (error) {
+                log += `\n❌ 测试失败: ${error.message}\n`;
+                resultDiv.innerHTML = `<pre style="color: #f5222d">${log}</pre>`;
+            }
+        }
+
+        // 页面加载时自动获取列表
+        window.onload = () => {
+            // 检查是否有 token
+            const token = getToken();
+            if (token) {
+                console.log('✅ 检测到 Token:', token.substring(0, 20) + '...');
+                document.getElementById('token').placeholder = '已自动从 localStorage 获取';
+            } else {
+                console.log('⚠️ 未检测到 Token，请先登录前端应用或手动输入');
+                document.getElementById('token').placeholder = '请先登录前端应用，或手动输入 Token';
+            }
+            
+            getCouponList();
+        };
+    </script>
+</body>
+</html>

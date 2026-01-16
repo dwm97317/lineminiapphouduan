@@ -237,8 +237,9 @@ class TrOrder extends Controller
     public function changeRemark(){
         $param = $this->request->param();
         $model = new Inpack();
-        $detail = $model::details($param['id']);
-        if($detail->save(['remark'=>$param['remark']])){
+        // 直接使用数据库更新，避免保存不存在的字段
+        $result = $model->where('id', $param['id'])->update(['remark' => $param['remark']]);
+        if($result !== false){
             return $this->renderSuccess('更新成功');
         }
         return $this->renderError('更新失败');
@@ -340,6 +341,16 @@ class TrOrder extends Controller
         return $this->getList('全部订单列表', "all");
     }
     
+    /**
+     * 全部订单列表 (驼峰命名兼容)
+     * @return mixed
+     * @throws \think\exception\DbException
+     */
+    public function AllList()
+    {
+        return $this->all_list();
+    }
+    
     public function edit($id){
         $line = (new Line())->getListAll([]);
         // 订单详情
@@ -364,6 +375,14 @@ class TrOrder extends Controller
              return $this->renderSuccess('操作成功','javascript:history.back(1)');
        } 
        return $this->renderError($model->getError() ?: '操作失败');
+    }
+    
+    /**
+     * 点击编辑集运单，修改保存的函数 (驼峰命名兼容)
+     * 2022年11月5日 增加图片增删功能
+    */
+    public function ModifySave(){
+       return $this->modify_save();
     }
     
     //获取订单金额和用户余额
@@ -675,8 +694,18 @@ class TrOrder extends Controller
     
     // 发货物流
     public function deliverySave(){
+       // 调试：记录提交的数据
+       $delivery_data = $this->postData('delivery');
+       $log_file = __DIR__ . '/../../../../debug_transfer_log.txt';
+       file_put_contents($log_file, 
+           "=== 转单请求 " . date('Y-m-d H:i:s') . " ===\n" .
+           "提交的数据:\n" . print_r($delivery_data, true) . "\n" .
+           "POST原始数据:\n" . print_r($_POST, true) . "\n\n",
+           FILE_APPEND
+       );
+       
        $model = (new Inpack());
-       if ($model->modify($this->postData('delivery'))){
+       if ($model->modify($delivery_data)){
            return $this->renderSuccess('操作成功');
        } 
        return $this->renderError($model->getError() ?: '操作失败');
@@ -700,7 +729,12 @@ class TrOrder extends Controller
     
     //问题件删除
     public function orderdelete($id){
-        $model = Inpack::details($id);
+        // 直接查询，不使用 details() 避免加载不必要的字段
+        $model = Inpack::get($id);
+        if (!$model) {
+            return json(['code' => 0, 'msg' => '订单不存在']);
+        }
+        
         $package_ids = $model['pack_ids'];
         $pack = explode(',',$package_ids);
         if(!empty($pack)){
@@ -708,25 +742,36 @@ class TrOrder extends Controller
             (new Package())->where('id',$val)->update(['status' => 2,'inpack_id'=>null]);
           }  
         }
-        if ($model->removedelete($id)) {
-            return $this->renderSuccess('删除成功');
+        
+        // 直接更新数据库，不使用 save()
+        $result = Inpack::where('id', $id)->update(['is_delete' => 1]);
+        if ($result !== false) {
+            return json(['code' => 1, 'msg' => '删除成功']);
         }
-        return $this->renderError($model->getError() ?: '删除失败');
+        return json(['code' => 0, 'msg' => '删除失败']);
     }
     
      //集运单删除
     public function delete($id){
-        $model = Inpack::details($id);
+        // 直接查询，不使用 details() 避免加载不必要的字段
+        $model = Inpack::get($id);
+        if (!$model) {
+            return json(['code' => 0, 'msg' => '订单不存在']);
+        }
+        
         //找到集运单所有的包裹单号，循环设置状态为2；
         $package_ids = $model['pack_ids'];
         $pack = explode(',',$package_ids);
         foreach ($pack as $key => $val){
             (new Package())->where('id',$val)->update(['status' => 2]);
         }
-        if ($model->removedelete($id)) {
-            return $this->renderSuccess('删除成功');
+        
+        // 直接更新数据库，不使用 save()
+        $result = Inpack::where('id', $id)->update(['is_delete' => 1]);
+        if ($result !== false) {
+            return json(['code' => 1, 'msg' => '删除成功']);
         }
-        return $this->renderError($model->getError() ?: '删除失败');
+        return json(['code' => 0, 'msg' => '删除失败']);
     }
 
     /**
@@ -1343,19 +1388,19 @@ class TrOrder extends Controller
 		</td>
 	</tr>
 	<tr>
-		<td colspan=2 class="paddingleft left font_xl" height="36">
-		   '.$data['address']['name']. $data['address']['phone'].'<br>
-		   '.$data['address']['country'].'
-					'.$data['address']['province'].'
-					'.$data['address']['city'].'
-					'.$data['address']['region'].'
-					'.$data['address']['district'].'
-					'.$data['address']['street'].'
-					'.$data['address']['door'].'
-				<strong>'.$data['address']['detail'].'</strong>
-					'.$data['address']['code'].'
-		</td>
-	</tr>
+ 		<td colspan=2 class="paddingleft left font_xl" height="36">
+ 		   '.$data['address']['name']. $data['address']['phone'].'<br>
+ 		   '.$data['address']['country'].'
+ 					'.(is_array($data['address']['province'])?'':$data['address']['province']).'
+ 					'.(is_array($data['address']['city'])?'':$data['address']['city']).'
+ 					'.(is_array($data['address']['region'])?'':$data['address']['region']).'
+ 					'.(is_array($data['address']['district'])?'':$data['address']['district']).'
+ 					'.(is_array($data['address']['street'])?'':$data['address']['street']).'
+ 					'.(is_array($data['address']['door'])?'':$data['address']['door']).'
+ 				<strong>'.$data['address']['detail'].'</strong>
+ 					'.(is_array($data['address']['code'])?'':$data['address']['code']).'
+ 		</td>
+ 	</tr>
 </table>';
 } 
     
@@ -1655,7 +1700,7 @@ class TrOrder extends Controller
 					'.$data['address']['country'].'
 					'.$data['address']['province'].'
 					'.$data['address']['city'].'
-					'.$data['address']['region'].'
+ 					'.(is_array($data['address']['region'])?'':$data['address']['region']).'
 					'.$data['address']['district'].'
 					'.$data['address']['street'].'
 					'.$data['address']['door'].'

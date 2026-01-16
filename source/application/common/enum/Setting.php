@@ -63,6 +63,16 @@ class Setting extends EnumBasics
     // 分类页模板
     const PAGE_CATEGORY_TEMPLATE = 'page_category_template';
 
+    // LINE小程序设置
+    const LINE_CONFIG = 'line_config';
+    // LINE 消息通知
+    const LINE_MESSAGING = 'line_messaging';
+    // LINE Pay 支付
+    const LINE_PAY = 'line_pay';
+    // 客户联系配置
+    const CUSTOMER_CONTACT = 'customer_contact';
+
+
     /**
      * 获取订单类型值
      * @return array
@@ -158,7 +168,25 @@ class Setting extends EnumBasics
                 'value' => self::PAGE_CATEGORY_TEMPLATE,
                 'describe' => '分类页模板',
             ],
+            self::LINE_CONFIG => [
+                'value' => self::LINE_CONFIG,
+                'describe' => 'LINE小程序设置',
+            ],
+            self::LINE_MESSAGING => [
+                'value' => self::LINE_MESSAGING,
+                'describe' => 'LINE消息通知',
+            ],
+            self::LINE_PAY => [
+                'value' => self::LINE_PAY,
+                'describe' => 'LINE Pay支付设置',
+            ],
+            self::CUSTOMER_CONTACT => [
+                'value' => self::CUSTOMER_CONTACT,
+                'describe' => '客户联系配置',
+            ],
         ];
     }
+
+
 
 }

@@ -357,13 +357,13 @@ class User extends UserModel
     {
         !empty($query) && $this->setListQueryWhere($query);
     
-        // 获取用户列表
-        return (new UserAddress())->alias('ad')
+        // 获取用户列表 - 使用 Db 查询避免触发模型访问器
+        return \think\Db::name('user_address')->alias('ad')
             ->join('user u','u.user_id = ad.user_id','left')
             ->where('ad.address_type',0)
             ->where('ad.wxapp_id',self::$wxapp_id)
             ->field('u.user_id,u.user_code,u.nickName,ad.*')
-            ->order(['ad.address_id' => 'desc'])
+            ->order('ad.address_id', 'desc')
             ->paginate(15, false, [
                 'query' => \request()->request()
             ]);

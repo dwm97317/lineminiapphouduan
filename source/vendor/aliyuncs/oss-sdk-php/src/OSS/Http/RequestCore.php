@@ -156,8 +156,9 @@ class RequestCore
 
     /**
      * The state of SSL certificate verification.
+     * Set to false to bypass SSL certificate verification (useful for local development)
      */
-    public $ssl_verification = true;
+    public $ssl_verification = false;
 
     /**
      * The user-defined callback function to call when a stream is read from.

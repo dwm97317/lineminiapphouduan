@@ -305,6 +305,41 @@ class User extends Controller
         ]);
     }
     
+    /**
+     * 用户余额变动明细
+     * @return array
+     * @throws \think\exception\DbException
+     */
+    public function balanceLog(){
+        $userInfo = $this->getUser();
+        $model = new \app\common\model\user\BalanceLog();
+        
+        // 获取查询参数
+        $params = $this->request->param();
+        $scene = isset($params['scene']) ? (int)$params['scene'] : -1;
+        $page = isset($params['page']) ? (int)$params['page'] : 1;
+        
+        // 构建查询
+        $query = $model->where('user_id', $userInfo['user_id']);
+        
+        // 根据scene参数筛选
+        // scene=1 表示充值 (sence_type=1)
+        // scene=2 表示消费 (sence_type=2)
+        if ($scene === 1) {
+            $query->where('sence_type', 1);
+        } elseif ($scene === 2) {
+            $query->where('sence_type', 2);
+        }
+        
+        // 分页查询
+        $list = $query->order(['create_time' => 'desc'])
+            ->paginate(15, false, ['page' => $page]);
+        
+        return $this->renderSuccess([
+            'list' => $list
+        ]);
+    }
+    
     
     
     public function clerk(){

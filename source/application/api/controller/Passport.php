@@ -120,6 +120,34 @@ class Passport extends Controller
         ], '登录成功');  
     }
     
+    /**
+     * LINE小程序快捷登录 (需提交id_token)
+     * 业务流程：验证ID Token -> 判断openid是否存在 -> 存在: 更新用户登录信息 -> 返回userId和token
+     *                                          -> 不存在: 创建新用户或要求绑定手机
+     * @return array|\think\response\Json
+     * @throws \app\common\exception\BaseException
+     * @throws \think\Exception
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
+     */
+    public function loginMpLine(){
+        $LoginService = new LoginService;
+
+        if (!$LoginService->loginMpLine($this->postForm())) {
+            return $this->renderError($LoginService->getError());
+        }
+        // 获取登录成功后的用户信息
+        $userInfo = $LoginService->getUserInfo();
+        return $this->renderSuccess([
+            'userId' => (int)$userInfo['user_id'],
+            'nickname' => (string) $userInfo['nickName'],
+            'avatarUrl' => (string) $userInfo['avatarUrl'],
+            'token' => $LoginService->getToken((int)$userInfo['user_id'])
+        ], '登录成功');  
+    }
+
+    
     public function loginClerk()
     {
         // 微信小程序一键登录

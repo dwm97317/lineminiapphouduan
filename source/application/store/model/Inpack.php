@@ -50,22 +50,100 @@ class Inpack extends InpackModel
         // 检索查询条件
         !empty($query) && $this->setWhere($query);
         !isset($query['limitnum']) && $query['limitnum'] = 10;
-        // 获取数据列表
-        $res= $this
+        // 获取数据列表 - 使用 Db 查询避免触发 UserAddress 模型的访问器
+        $res= \think\Db::name('inpack')
             ->alias('pa')
-            ->field('pa.*,ba.batch_id,ba.batch_name,ba.batch_no,u.nickName')
-            ->with(['line','address','storage','user','shop','usercoupon'])
+            ->field('pa.*,ba.batch_id,ba.batch_name,ba.batch_no,u.nickName,add.address_id,add.name,add.phone,add.country,add.province,add.city,add.region,add.detail,add.identitycard,add.clearancecode,add.street,add.door,add.code,add.email')
             ->join('user u','u.user_id = pa.member_id','left')
             ->join('user_address add','add.address_id = pa.address_id','left')
             ->join('batch ba','ba.batch_id = pa.batch_id','left')
             ->where('pa.status','in',$this->status[$dataType])
             ->where('pa.is_delete',0)
-            ->order(['pa.created_time' => 'desc'])
+            ->order('pa.created_time', 'desc')
             ->paginate($query['limitnum'], false, [
                 'query' => \request()->request()
             ]);
-            // dump($res->toArray());die;
-         return $res;
+            
+        // 手动加载关联数据（line, storage, user, shop, usercoupon）
+        $res->each(function(&$item) {
+            // 初始化 num 字段（控制器会重新计算，但先初始化避免错误）
+            $item['num'] = !empty($item['pack_ids']) ? count(explode(',', $item['pack_ids'])) : 0;
+            $item['down_shelf'] = 0;
+            $item['inpack'] = 0;
+            
+            // 初始化关联字段，避免视图中出现 "Undefined index" 错误
+            $item['line'] = ['name' => ''];
+            $item['storage'] = ['shop_name' => ''];
+            $item['shop'] = ['shop_name' => ''];
+            $item['usercoupon'] = ['name' => ''];
+            $item['user'] = ['nickName' => $item['nickName'] ?? '', 'user_code' => '', 'service' => []];
+            
+            // 构建 address 数组 - 使用已经 join 的字段
+            $item['address'] = [
+                'name' => $item['name'] ?? '',
+                'phone' => $item['phone'] ?? '',
+                'country' => $item['country'] ?? '',
+                'province' => $item['province'] ?? '',
+                'city' => $item['city'] ?? '',
+                'region' => $item['region'] ?? '',
+                'detail' => $item['detail'] ?? '',
+                'identitycard' => $item['identitycard'] ?? '',
+                'clearancecode' => $item['clearancecode'] ?? '',
+                'street' => $item['street'] ?? '',
+                'door' => $item['door'] ?? '',
+                'code' => $item['code'] ?? '',
+                'email' => $item['email'] ?? ''
+            ];
+            
+            // 加载 user 关联（包括 service）
+            if (!empty($item['member_id'])) {
+                try {
+                    $user = \think\Db::name('user')->where('user_id', $item['member_id'])->find();
+                    if ($user) {
+                        $item['user'] = $user;
+                        // 加载 service 关联
+                        if (!empty($user['service_id'])) {
+                            $service = \think\Db::name('store_clerk')->where('clerk_id', $user['service_id'])->find();
+                            if ($service) $item['user']['service'] = $service;
+                        } else {
+                            $item['user']['service'] = [];
+                        }
+                    }
+                } catch (\Exception $e) {}
+            }
+            
+            // 加载 line 关联
+            if (!empty($item['line_id'])) {
+                try {
+                    $line = \think\Db::name('line')->where('id', $item['line_id'])->find();
+                    if ($line) $item['line'] = $line;
+                } catch (\Exception $e) {}
+            }
+            // 加载 storage 关联
+            if (!empty($item['storage_id'])) {
+                try {
+                    $storage = \think\Db::name('shop')->where('shop_id', $item['storage_id'])->find();
+                    if ($storage) $item['storage'] = $storage;
+                } catch (\Exception $e) {}
+            }
+            // 加载 shop 关联
+            if (!empty($item['shop_id'])) {
+                try {
+                    $shop = \think\Db::name('shop')->where('shop_id', $item['shop_id'])->find();
+                    if ($shop) $item['shop'] = $shop;
+                } catch (\Exception $e) {}
+            }
+            // 加载 usercoupon 关联
+            if (!empty($item['coupon_id'])) {
+                try {
+                    $coupon = \think\Db::name('user_coupon')->where('user_coupon_id', $item['coupon_id'])->find();
+                    if ($coupon) $item['usercoupon'] = $coupon;
+                } catch (\Exception $e) {}
+            }
+            return $item;
+        });
+        
+        return $res;
     }
     
     
@@ -81,21 +159,52 @@ class Inpack extends InpackModel
         // 检索查询条件
         !empty($query) && $this->setWhere($query);
         !isset($query['limitnum']) && $query['limitnum'] = 10;
-        // 获取数据列表
-        $res= $this
+        // 获取数据列表 - 使用 Db 查询避免触发 UserAddress 模型的访问器
+        $res= \think\Db::name('inpack')
             ->alias('pa')
-            ->with(['line','address','storage','user'])
+            ->field('pa.*,u.nickName,add.name as address_name,add.phone as address_phone,add.country,add.province,add.city,add.region,add.detail')
             ->join('user u','u.user_id = pa.member_id','left')
             ->join('user_address add','add.address_id = pa.address_id','left')
             ->where('pa.status','in',$this->status[$dataType])
             ->where('pa.is_delete',0)
             ->where('pa.is_pay',2)
-            ->order(['pa.created_time' => 'desc'])
+            ->order('pa.created_time', 'desc')
             ->paginate($query['limitnum'], false, [
                 'query' => \request()->request()
             ]);
-            // dump($res->toArray());die;
-         return $res;
+            
+        // 手动加载关联数据
+        $items = $res->items();
+        foreach ($items as &$item) {
+            $item['line'] = ['name' => ''];
+            $item['storage'] = ['shop_name' => ''];
+            $item['user'] = ['nickName' => $item['nickName'] ?? ''];
+            $item['address'] = [
+                'name' => $item['address_name'] ?? '',
+                'phone' => $item['address_phone'] ?? '',
+                'country' => $item['country'] ?? '',
+                'province' => $item['province'] ?? '',
+                'city' => $item['city'] ?? '',
+                'region' => $item['region'] ?? '',
+                'detail' => $item['detail'] ?? ''
+            ];
+            
+            if (!empty($item['line_id'])) {
+                try {
+                    $line = \think\Db::name('line')->where('id', $item['line_id'])->find();
+                    if ($line) $item['line'] = $line;
+                } catch (\Exception $e) {}
+            }
+            if (!empty($item['storage_id'])) {
+                try {
+                    $storage = \think\Db::name('shop')->where('shop_id', $item['storage_id'])->find();
+                    if ($storage) $item['storage'] = $storage;
+                } catch (\Exception $e) {}
+            }
+        }
+        $res->items($items);
+        
+        return $res;
     }
     
     /**
@@ -110,21 +219,43 @@ class Inpack extends InpackModel
         // 检索查询条件
         !empty($query) && $this->setWhere($query);
         !isset($query['limitnum']) && $query['limitnum'] = 10;
-        // 获取数据列表
-        $res= $this
+        // 获取数据列表 - 使用 Db 查询避免触发 UserAddress 模型的访问器
+        $res= \think\Db::name('inpack')
             ->alias('pa')
-            ->with(['line','address','storage','user'])
+            ->field('pa.*,u.nickName')
             ->join('user u','u.user_id = pa.member_id','left')
             ->join('user_address add','add.address_id = pa.address_id','left')
             ->where('pa.status','in',$this->status[$dataType])
             ->where('pa.is_delete',0)
             ->where('pa.address_id',null)
-            ->order(['pa.created_time' => 'desc'])
+            ->order('pa.created_time', 'desc')
             ->paginate($query['limitnum'], false, [
                 'query' => \request()->request()
             ]);
-            // dump($res->toArray());die;
-         return $res;
+            
+        // 手动加载关联数据
+        $items = $res->items();
+        foreach ($items as &$item) {
+            $item['line'] = ['name' => ''];
+            $item['storage'] = ['shop_name' => ''];
+            $item['user'] = ['nickName' => $item['nickName'] ?? ''];
+            
+            if (!empty($item['line_id'])) {
+                try {
+                    $line = \think\Db::name('line')->where('id', $item['line_id'])->find();
+                    if ($line) $item['line'] = $line;
+                } catch (\Exception $e) {}
+            }
+            if (!empty($item['storage_id'])) {
+                try {
+                    $storage = \think\Db::name('shop')->where('shop_id', $item['storage_id'])->find();
+                    if ($storage) $item['storage'] = $storage;
+                } catch (\Exception $e) {}
+            }
+        }
+        $res->items($items);
+        
+        return $res;
     }
     
     
@@ -240,8 +371,15 @@ class Inpack extends InpackModel
      * @param $data []
      */
     public function modify($data){
+        // 调试：记录接收到的数据
+        $log_file = __DIR__ . '/../../../../../debug_transfer_log.txt';
+        file_put_contents($log_file, 
+            "=== Inpack::modify() 接收数据 " . date('Y-m-d H:i:s') . " ===\n" .
+            print_r($data, true) . "\n",
+            FILE_APPEND
+        );
                 
-        $field = ['line_id','length','width','height','weight','verify','free','pack_free','cale_weight','volume','other_free','remark','t_number','t_name','t_order_sn'];
+        $field = ['line_id','length','width','height','weight','verify','free','pack_free','cale_weight','volume','other_free','remark','t_number','t_name','t_order_sn','tt_number','transfer'];
         $update = [];
         //物流模板设置
         $noticesetting = SettingModel::getItem('notice');
@@ -250,6 +388,12 @@ class Inpack extends InpackModel
             if (isset($data[$v]))
                $update[$v] = $data[$v];
         }
+        
+        // 调试：记录过滤后的数据
+        file_put_contents($log_file, 
+            "过滤后的 \$update 数组:\n" . print_r($update, true) . "\n",
+            FILE_APPEND
+        );
       
         $update['updated_time'] = getTime();
    
@@ -314,10 +458,17 @@ class Inpack extends InpackModel
                 $pack['userName']=$userData['nickName'];
                 $pack['remark']= $noticesetting['enter']['describe'];
                 
-                if($tplmsgsetting['is_oldtps']==1){
-                    $res =$this->sendEnterMessage([$pack],'payment');
-                }else{
-                    Message::send('package.sendpack',$pack);
+                // 发送LINE查验通知
+                try {
+                    $lineNotification = new \app\common\service\message\line\Inwarehouse();
+                    $lineNotification->send($pack);
+                } catch (\Exception $e) {
+                    log_write([
+                        'describe' => 'LINE查验通知发送失败',
+                        'inpack_id' => $pack['id'],
+                        'error' => $e->getMessage(),
+                        'time' => date('Y-m-d H:i:s')
+                    ]);
                 }
                 
                 //发送邮件通知
@@ -405,16 +556,26 @@ class Inpack extends InpackModel
             }
             
 
-            //发送订阅消息以及模板消息
+            //发送订阅消息以及模板消息（仅在非转单模式下发送）
+            if($data['type'] != 'change'){
                 $pack['userName']=$userData['nickName'];
                 $pack['remark']='包裹已经发货';
                 $pack['total_free'] = $pack['free'] + $pack['pack_free'] + $pack['other_free'] ;
-                // $res =$this->sendEnterMessage([$pack],'payment');
-                if($tplmsgsetting['is_oldtps']==1){
-                    $res =$this->sendEnterMessage([$pack],'payment');
-                }else{
-                    Message::send('package.sendpack',$pack);
+                
+                // 发送LINE发货通知
+                try {
+                    $lineNotification = new \app\common\service\message\line\Sendpack();
+                    $lineNotification->send($pack);
+                } catch (\Exception $e) {
+                    log_write([
+                        'describe' => 'LINE发货通知发送失败',
+                        'inpack_id' => $pack['id'],
+                        'error' => $e->getMessage(),
+                        'time' => date('Y-m-d H:i:s')
+                    ]);
                 }
+            }
+                
             //发送邮件通知
             $emailsetting = SettingModel::getItem('email');
             if($emailsetting['is_enable']==1 && (isset($pack['member_id']) || !empty($pack['member_id']))){
@@ -427,13 +588,87 @@ class Inpack extends InpackModel
         unset($update['verify']);
         
         if($data['type']=='change'){
-       
-            $upd['t2_number'] = $update['t_number'];
-            $upd['t2_name'] = $update['t_name'];
-            $upd['t2_order_sn'] = $update['t_order_sn'];
+            // 调试：记录进入转单模式
+            $log_file = __DIR__ . '/../../../../../debug_transfer_log.txt';
+            file_put_contents($log_file, 
+                "=== 进入转单模式 ===\n" .
+                "data['type'] = " . $data['type'] . "\n" .
+                "data['transfer'] = " . ($data['transfer'] ?? 'undefined') . "\n" .
+                "data['tt_number'] = " . ($data['tt_number'] ?? 'undefined') . "\n" .
+                "data['t_number'] = " . ($data['t_number'] ?? 'undefined') . "\n" .
+                "data['t_order_sn'] = " . ($data['t_order_sn'] ?? 'undefined') . "\n",
+                FILE_APPEND
+            );
+            
+            // 转单模式：需要查询承运商名称
+            $carrier_name = '';
+            $carrier_number = '';
+            
+            if($data['transfer']==1){
+                // 外部承运商
+                file_put_contents($log_file, "查询外部承运商: " . $data['tt_number'] . "\n", FILE_APPEND);
+                $express = (new Express())->where('express_code',$data['tt_number'])->find();
+                if($express){
+                    $carrier_name = $express['express_name'];
+                    $carrier_number = $data['tt_number'];
+                    file_put_contents($log_file, "找到承运商: $carrier_name ($carrier_number)\n", FILE_APPEND);
+                } else {
+                    file_put_contents($log_file, "未找到承运商!\n", FILE_APPEND);
+                }
+            }else{
+                // 自有物流
+                file_put_contents($log_file, "查询自有物流: " . $data['t_number'] . "\n", FILE_APPEND);
+                $ditchdetail = DitchModel::detail($data['t_number']);
+                if($ditchdetail){
+                    $carrier_name = $ditchdetail['ditch_name'];
+                    $carrier_number = $ditchdetail['ditch_id'];
+                    file_put_contents($log_file, "找到自有物流: $carrier_name ($carrier_number)\n", FILE_APPEND);
+                } else {
+                    file_put_contents($log_file, "未找到自有物流!\n", FILE_APPEND);
+                }
+            }
+            
+            $upd['t2_number'] = $carrier_number;
+            $upd['t2_name'] = $carrier_name;
+            $upd['t2_order_sn'] = $data['t_order_sn'];
             $upd['updated_time'] = $update['updated_time'];
             $upd['status'] = $update['status'];
+            
+            // 调试：记录最终更新数据
+            file_put_contents($log_file, 
+                "最终更新数组 \$upd:\n" . print_r($upd, true) . "\n",
+                FILE_APPEND
+            );
+            
             $update = $upd;
+            
+            // 发送LINE转单通知（在数据库更新之前，使用即将更新的数据）
+            try {
+                // 获取订单基本信息
+                $pack = $this->where(['id'=>$data['id']])->find();
+                $userData = (new UserModel)->where('user_id',$pack['member_id'])->find();
+                
+                // 添加转单信息
+                $pack['t2_name'] = $carrier_name;
+                $pack['t2_number'] = $carrier_number;
+                $pack['t2_order_sn'] = $data['t_order_sn'];
+                $pack['userName'] = $userData['nickName'];
+                $pack['remark'] = '包裹已转单发货';
+                $pack['total_free'] = $pack['free'] + $pack['pack_free'] + $pack['other_free'];
+                
+                $lineNotification = new \app\common\service\message\line\Sendpack();
+                $lineNotification->send($pack);
+                
+                file_put_contents($log_file, "LINE转单通知已发送\n", FILE_APPEND);
+            } catch (\Exception $e) {
+                file_put_contents($log_file, "LINE转单通知发送失败: " . $e->getMessage() . "\n", FILE_APPEND);
+                log_write([
+                    'describe' => 'LINE转单通知发送失败',
+                    'inpack_id' => $data['id'],
+                    'error' => $e->getMessage(),
+                    'time' => date('Y-m-d H:i:s')
+                ]);
+            }
             // dump($update);die;
             ////注册发货单到17track,当是选择可以查询的物流时，自有物流不可查询
             if($data['transfer']==1 && $noticesetting['is_track_zhuandan']['is_enable']==1){
@@ -446,6 +681,16 @@ class Inpack extends InpackModel
                 ]);
             }
         }
+        
+        // 调试：记录最终执行的更新
+        file_put_contents($log_file, 
+            "=== 执行数据库更新 ===\n" .
+            "inpack_id = " . $data['id'] . "\n" .
+            "更新数据:\n" . print_r($update, true) . "\n" .
+            "==================\n\n",
+            FILE_APPEND
+        );
+        
         $resss = $this->where(['id'=>$data['id']])->update($update);
         Db::commit();
         return  $resss;
@@ -485,7 +730,27 @@ class Inpack extends InpackModel
     
     //获取集运单的相关信息->with(['line','storage','inpackimage.file'])
     public static function details($id){
-        return self::get($id, ['inpackimage.file']);
+        $detail = self::get($id, ['inpackimage.file']);
+        
+        // 手动加载 address 数据，避免触发访问器
+        if ($detail && $detail['address_id']) {
+            $address = \think\Db::name('user_address')
+                ->where('address_id', $detail['address_id'])
+                ->find();
+            
+            if ($address) {
+                // 直接设置到 data 属性中，这样可以访问但不会保存到数据库
+                $detail->data['country'] = $address['country'] ?? '';
+                $detail->data['province'] = $address['province'] ?? '';
+                $detail->data['city'] = $address['city'] ?? '';
+                $detail->data['region'] = $address['region'] ?? '';
+                $detail->data['detail'] = $address['detail'] ?? '';
+                $detail->data['name'] = $address['name'] ?? '';
+                $detail->data['phone'] = $address['phone'] ?? '';
+            }
+        }
+        
+        return $detail;
     }
 
     public function setWhere($query){

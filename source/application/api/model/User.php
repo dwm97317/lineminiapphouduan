@@ -46,8 +46,16 @@ class User extends UserModel
      */
     public static function getUser($token)
     {
-        $openId = Cache::get($token)['openid'];
-        return self::detail(['open_id' => $openId], ['address', 'addressDefault', 'grade','userimage','service']);
+        $cacheData = Cache::get($token);
+        
+        // 优先使用 line_openid（LINE 用户）
+        if (!empty($cacheData['line_openid'])) {
+            return self::detail(['line_openid' => $cacheData['line_openid']], ['address', 'addressDefault', 'grade','userimage','service','usermark']);
+        }
+        
+        // 其他平台使用 open_id
+        $openId = $cacheData['openid'];
+        return self::detail(['open_id' => $openId], ['address', 'addressDefault', 'grade','userimage','service','usermark']);
     }
     
     //仓管app员工登录

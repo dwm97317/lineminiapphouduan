@@ -21,6 +21,21 @@ class User extends BaseModel
     // 余额不变更，只更新日志
     public function logUpdate($type,$member_id,$amount,$remark){
         $member = self::find($member_id);
+        
+        // 将字符串类型转换为整数
+        switch ($type) {
+            case 'add':
+                $type = 1;
+                break;
+            case 'remove':
+                $type = 2;
+                break;
+            default:
+                // 如果已经是整数，保持不变
+                $type = is_numeric($type) ? (int)$type : 1;
+                break;
+        }
+        
         // 新增余额变动记录
          BalanceLog::add(SceneEnum::CONSUME, [
               'user_id' => $member['user_id'],

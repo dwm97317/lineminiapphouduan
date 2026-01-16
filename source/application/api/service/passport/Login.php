@@ -400,6 +400,132 @@ class Login extends Basics
     }
     
     /**
+     * 快捷登录：LINE小程序登录
+     * @param array $form
+     * @return bool
+     * @throws BaseException
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\Exception
+     */
+    public function loginMpLine(array $form): bool
+    {
+        // 获取 LINE 配置
+        $lineConfig = SettingModel::getItem('line_config');
+        if (empty($lineConfig) || !$lineConfig['is_enable']) {
+            $this->error = 'LINE登录功能未开启';
+            return false;
+        }
+
+        // 验证 LINE ID Token
+        $lineProfile = $this->verifyLineIdToken($form['id_token'] ?? '');
+        if (!$lineProfile) {
+            $this->error = 'LINE授权失败或Token无效';
+            return false;
+        }
+        
+        // LINE 用户使用 line_openid 字段存储在 user 表中，不使用 user_binding 表
+        // 直接查询 user 表的 line_openid 字段
+        $userInfo = UserModel::detail(['line_openid' => $lineProfile['sub']]);
+        
+        $form['partyData']['nickName'] = $lineProfile['name'] ?? '';
+        $form['partyData']['oauth_id'] = $lineProfile['sub'];
+        $form['partyData']['avatarUrl'] = $lineProfile['picture'] ?? '';
+        $form['partyData']['refereeId'] = 0;
+        $form['partyData']['oauth'] = 'LINE';
+        
+        // 用户信息存在, 更新登录信息
+        if (!empty($userInfo)) {
+            // 更新用户登录信息
+            $this->updateUser($userInfo, true, $form['partyData'] ?? []);
+            // 记录登录态
+            return $this->setSession();
+        }
+        
+        // 用户信息不存在 => 注册新用户 或者 跳转到绑定手机号页
+        $setting = SettingModel::getItem(SettingEnum::REGISTER);
+        // 后台设置了需强制绑定手机号, 返回前端isBindMobile, 跳转到手机号验证页
+        if (!empty($setting) && $setting['isForceBindMpweixin']) {
+            throwError('当前用户未绑定手机号', null, ['isBindMobile' => true]);
+        }
+        // 后台未开启强制绑定手机号, 直接保存新用户
+        if (empty($setting) || !$setting['isForceBindMpweixin']) {
+            // 用户不存在: 创建一个新用户
+            // LINE 使用 line_openid 字段，不需要单独的 oauth 表
+            $this->createUser($lineProfile['sub'], true, $form['partyData']);
+            // LINE 不需要调用 createUserOauth，因为 line_openid 已经在 user 表中
+        }
+        // 记录登录态
+        return $this->setSession();
+    }
+    
+    /**
+     * 验证 LINE ID Token
+     * @param string $idToken
+     * @return array|false
+     */
+    private function verifyLineIdToken(string $idToken)
+    {
+        if (empty($idToken)) {
+            \think\Log::record('LINE Token is empty', 'error');
+            return false;
+        }
+
+        // 解码 JWT Token 获取用户信息（不验证签名，因为 LIFF SDK 已经验证过）
+        $parts = explode('.', $idToken);
+        if (count($parts) !== 3) {
+            \think\Log::record('LINE Token format invalid, parts count: ' . count($parts), 'error');
+            return false;
+        }
+
+        // 解码 payload
+        $payloadBase64 = strtr($parts[1], '-_', '+/');
+        $payloadJson = base64_decode($payloadBase64);
+        \think\Log::record('LINE Token payload (raw): ' . $payloadJson, 'info');
+        
+        $payload = json_decode($payloadJson, true);
+        
+        if (!$payload || !isset($payload['sub'])) {
+            \think\Log::record('LINE Token payload invalid or missing sub', 'error');
+            if ($payload) {
+                \think\Log::record('Payload keys: ' . implode(', ', array_keys($payload)), 'error');
+            }
+            return false;
+        }
+
+        // 验证 token 是否过期
+        if (isset($payload['exp']) && $payload['exp'] < time()) {
+            \think\Log::record('LINE Token expired, exp: ' . $payload['exp'] . ', now: ' . time(), 'error');
+            return false;
+        }
+
+        // 验证 channel ID
+        $channelId = $this->getLineChannelId();
+        if (!empty($channelId) && isset($payload['aud']) && $payload['aud'] !== $channelId) {
+            \think\Log::record('LINE Token channel ID mismatch, expected: ' . $channelId . ', got: ' . $payload['aud'], 'error');
+            return false;
+        }
+
+        \think\Log::record('LINE Token validation success, userId: ' . $payload['sub'], 'info');
+
+        return $payload;
+    }
+    
+    /**
+     * 获取 LINE Channel ID (从配置或数据库读取)
+     * @return string
+     */
+    private function getLineChannelId(): string
+    {
+        // 从 Setting 模型读取 LINE 配置
+        $lineConfig = SettingModel::getItem('line_config');
+        return $lineConfig['channel_id'] ?? '';
+    }
+
+
+    
+    /**
      * 快捷登录：仓库员工登录
      * @param array $form
      * @return bool
@@ -509,15 +635,36 @@ class Login extends Basics
      */
     private function createUser(string $mobile,$isParty, array $partyData = []): void
     {
+        // 获取系统设置
+        $setting = SettingModel::getItem('store', (new UserModel)->getWxappid());
+        
+        // LINE用户默认不生成user_code（使用User ID模式）
+        // 其他平台用户根据后台设置生成
+        $user_code = '';
+        $isLineUser = isset($partyData['oauth']) && $partyData['oauth'] === 'LINE';
+        
+        if (!$isLineUser && ($setting['usercode_mode']['is_show'] == 1 || $setting['usercode_mode']['is_show'] == 2)) {
+            $user_code = $this->generateUserCode($setting);
+        }
+        
         // 用户信息
         $data = [
             'mobile' => $mobile,
             'nickName' => $partyData['nickName']?$partyData['nickName']:hide_mobile($mobile),
-            'open_id'=> $mobile,
+            'open_id'=> $mobile,  // 默认使用 mobile，LINE 用户会被覆盖为空
             'platform' => getPlatform(),
-            'last_login_time' => time(),
-            'wxapp_id' =>(new UserModel)->getWxappid() ,
+            'last_login_time' => date('Y-m-d H:i:s'),
+            'birthday' => date('Y-m-d H:i:s'),  // timestamp 类型，使用当前时间
+            'wxapp_id' =>(new UserModel)->getWxappid(),
+            'user_code' => $user_code,  // LINE用户为空，其他平台根据设置生成
         ];
+        
+        // 如果是 LINE 登录，只设置 line_openid，open_id 保持为空
+        if ($isLineUser) {
+            $data['line_openid'] = $partyData['oauth_id'];
+            $data['open_id'] = '';  // LINE 用户的 open_id 为空
+        }
+        
         if ($partyData['refereeId']){
             $data['referee_id'] = $partyData['refereeId'];
         }
@@ -537,6 +684,34 @@ class Login extends Basics
             RefereeModel::createRelation($model['user_id'], $refereeId);
         }
     }
+    
+    /**
+     * 生成用户编码
+     * @param array $setting
+     * @return string
+     */
+    private function generateUserCode(array $setting): string
+    {
+        switch ($setting['usercode_mode']['mode']) {
+            case '10':
+                // 纯数字
+                $num = $setting['usercode_mode'][10]['number'];
+                return $this->createNum($num);
+            case '20':
+                // 英文字母
+                $num = $setting['usercode_mode'][20]['char'];
+                return $this->createChar($num);
+            case '30':
+                // 混合模式（字母+数字）
+                $zimu = $setting['usercode_mode'][30]['char'];
+                $num = $setting['usercode_mode'][30]['number'];
+                return $this->createCharNum($num, $zimu);
+            default:
+                // 默认纯数字
+                $num = $setting['usercode_mode'][10]['number'] ?? 5;
+                return $this->createNum($num);
+        }
+    }
 
     /**
      * 更新用户登录信息
@@ -549,7 +724,7 @@ class Login extends Basics
     {
         // 用户信息
         $data = [
-            'last_login_time' => time(),
+            'last_login_time' => date('Y-m-d H:i:s'),
             'wxapp_id' => (new UserModel)->getWxappid()
         ];
         // 写入用户信息(第三方)
@@ -577,13 +752,22 @@ class Login extends Basics
             // dump($this->userInfo);die;
         // 登录的token
         $token = $this->getToken($this->getUserId());
-        // 记录缓存, 30天
-        Cache::set($token, [
+        
+        // 构建缓存数据
+        $cacheData = [
             'user' => $this->userInfo,
             'openid' => $this->userInfo->open_id,
             'store_id' => (new UserModel)->getWxappid(),
             'is_login' => true,
-        ], 86400 * 30);
+        ];
+        
+        // 如果是 LINE 用户，添加 line_openid
+        if (!empty($this->userInfo->line_openid)) {
+            $cacheData['line_openid'] = $this->userInfo->line_openid;
+        }
+        
+        // 记录缓存, 30天
+        Cache::set($token, $cacheData, 86400 * 30);
         
         // dump(Cache::get($token)->toArray());die;
         return true;

@@ -26,4 +26,19 @@ class Category extends Controller
         return $this->renderSuccess(compact('templet', 'list'));
     }
 
+    /**
+     * 获取分类列表（用于包裹领取页面）
+     * @return array
+     * @throws \think\exception\DbException
+     */
+    public function lists()
+    {
+        // 获取所有分类（带图片关联）
+        $list = CategoryModel::with(['image'])
+            ->order(['sort' => 'asc', 'create_time' => 'asc'])
+            ->select();
+        
+        return $this->renderSuccess(['data' => $list]);
+    }
+
 }

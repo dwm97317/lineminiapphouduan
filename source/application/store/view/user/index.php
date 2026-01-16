@@ -151,7 +151,8 @@
                                     <td class="am-text-middle">
                                         开放平台ID:<?= $item['union_id'] ?> <br> 
                                         小程序ID:<?= $item['open_id'] ?> <br>
-                                        公众号ID:<?= $item['gzh_openid'] ?> <br> 
+                                        公众号ID:<?= $item['gzh_openid'] ?> <br>
+                                        LINE ID:<?= $item['line_openid'] ?> <br>
                                     </td>
                                      <td class="am-text-middle"><?= $item['service']['real_name'] ?></td>
                                     <!--<?php $usource = [1=>'小程序',2=>'公众号',3=>'PC端',4=>'App'] ?>-->

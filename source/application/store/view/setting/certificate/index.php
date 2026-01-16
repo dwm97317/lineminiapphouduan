@@ -46,7 +46,7 @@
                                         <td class="am-text-middle"><?= $item['cert_price'] ?></td>
                                         <td class="am-text-middle"><?= $item['cert_bank'] ?></td>
                                         <td class="am-text-middle"><?= date("Y-m-d",strtotime($item['cert_date'])) ?></td>
-                                        <?php $cert_type= [0=>'人民币',1=>'新币',2=>'美元',3=>'欧元',4=>'日元',5=>'韩元',6=>'其他']; ?>
+                                        <?php $cert_type= [0=>'人民币',1=>'新币',2=>'泰铢',3=>'美元',4=>'欧元',5=>'日元',6=>'韩元',7=>'其他']; ?>
                                         <td class="am-text-middle"><?= $cert_type[$item['cert_type']] ?></td>
                                         <!--状态  1 待审核 2 确认打款 3 信息有误-->
                                         <?php $type = [1=>'待审核',2=>'审核通过',3=>'信息有误',''=>'未知']; ?>

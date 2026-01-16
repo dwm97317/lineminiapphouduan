@@ -80,13 +80,13 @@
                                 <label class="am-u-sm-3 am-u-lg-2 am-form-label">选择唛头 </label>
                                 <div class="am-u-sm-2 am-u-end">
                                     <?php if (isset($printsetting) && $printsetting['is_open']==1): ?>
-                                    <select  onchange="printlabel()" id="usermark" name="data[mark]"
+                                    <select  onchange="printlabel()" id="usermark"
                                             data-am-selected="{searchBox: 1, btnSize: 'sm', placeholder:'请先选择用户', maxHeight: 400}" >
                                         <option value="1">请选择</option>
                                     </select>
                                     <?php endif; ?>
                                     <?php if (isset($printsetting) && $printsetting['is_open']==0): ?>
-                                    <select  id="usermark" name="data[mark]"
+                                    <select  id="usermark"
                                             data-am-selected="{searchBox: 1, btnSize: 'sm', placeholder:'请先选择用户', maxHeight: 400}" >
                                         <option value="1">请选择</option>
                                     </select>
@@ -94,7 +94,9 @@
                                 </div>
                                 <label class="am-u-sm-2 am-u-lg-1 am-form-label">输入唛头</label>
                                 <div class="am-u-sm-5 am-u-end">
-                                    <input type="text" id="inputmark" class="tpl-form-input" name="data[mark]" onchange ="printlabel()"
+                                    <input type="text" id="inputmark" class="tpl-form-input" onchange ="printlabel()"
+                                           value="" placeholder="请输入唛头">
+                                    <input type="hidden" id="usermarkplus" class="tpl-form-input" name="data[mark]" onchange ="printlabel()"
                                            value="" placeholder="请输入唛头">
                                 </div>
                                 
@@ -504,6 +506,8 @@
             }
         }
         var today = getNowFormatDate();
+        // 将选择的唛头值设置到 hidden field
+        $("#usermarkplus").val(usermark);
         // return;
         if(expremm){
             drawTextTest(expremm,usermark,today);

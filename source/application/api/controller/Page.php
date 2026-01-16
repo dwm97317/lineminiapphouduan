@@ -463,6 +463,10 @@ class Page extends Controller
        }
        $setting = CommonSetting::getItem('store',input('wxapp_id'));
         
+       // ✅ Fallback: 如果user_code为空且is_show=1，自动切换到is_show=0（使用User ID）
+       if($setting['usercode_mode']['is_show']==1 && empty(($this->user)['user_code'])){
+           $setting['usercode_mode']['is_show'] = 0;
+       }
        
        if($setting['is_change_uid']==1){
           ($this->user)['user_code'] = ($this->user)['user_code'].'室';
@@ -708,6 +712,11 @@ class Page extends Controller
        }
        $data = array_chunk($data->toArray(),2);
        return $this->renderSuccess($data);
+    }
+    
+    // 最佳线路 - 驼峰命名别名（ThinkPHP 路由兼容）
+    public function goodsLine(){
+       return $this->goods_line();
     }
     
     // 更多线路
@@ -1015,5 +1024,30 @@ class Page extends Controller
     public function notify(){
         $hantePay = (new hantePay());
         $hantePay->notify();
+    }
+    
+    /**
+     * 获取客户联系配置
+     * @return array
+     */
+    public function customer_contact() {
+        $wxapp_id = $this->request->param('wxapp_id', 10001);
+        $config = SettingModel::getItem('customer_contact', $wxapp_id);
+        
+        // 如果配置不存在，返回空对象
+        if (empty($config)) {
+            $config = [
+                'hotline_th' => '',
+                'line_support' => '',
+                'wechat' => ''
+            ];
+        }
+        
+        return $this->renderSuccess($config);
+    }
+    
+    // 驼峰命名别名（ThinkPHP 路由兼容）
+    public function customerContact() {
+        return $this->customer_contact();
     }
 }

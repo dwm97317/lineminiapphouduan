@@ -100,6 +100,8 @@ return [
     'url_domain_root' => '',
     // 是否自动转换URL中的控制器和操作名
     'url_convert' => true,
+    // 是否自动转换URL中的操作方法名（下划线转驼峰）
+    'action_convert' => true,
     // 默认的访问控制器层
     'url_controller_layer' => 'controller',
     // 表单请求类型伪装变量

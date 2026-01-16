@@ -11,6 +11,8 @@ use app\common\model\Wxapp as WxappModel;
  */
 class Wxapp extends WxappModel
 {
+    protected $pk = 'wxapp_id';
+
     /**
      * 隐藏字段
      * @var array

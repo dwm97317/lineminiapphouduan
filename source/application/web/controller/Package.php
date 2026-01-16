@@ -619,6 +619,7 @@ class Package extends Controller
           'updated_time' => getTime(),
           'status' => 1,
           'line_id' => $data['line_id'],
+          'operate_id' => 0,
           'wxapp_id' => $this->wxapp_id,
         ];
   
@@ -704,6 +705,7 @@ class Package extends Controller
           'updated_time' => getTime(),
           'status' => 1,
           'line_id' => $data['line_id'],
+          'operate_id' => 0,
           'wxapp_id' => $this->wxapp_id,
         ];
   
@@ -800,6 +802,7 @@ class Package extends Controller
           'updated_time' => getTime(),
           'status' => 1,
           'line_id' => $line_id,
+          'operate_id' => 0,
           'wxapp_id' => $this->wxapp_id,
         ];
        
@@ -1329,6 +1332,7 @@ class Package extends Controller
           'updated_time' => getTime(),
           'status' => 1,
           'source' => 1,
+          'operate_id' => 0,
           'wxapp_id' => (new Package())->getWxappId(),
           'line_id' => $line_id,
         ];

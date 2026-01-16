@@ -95,6 +95,7 @@ class Package extends Controller
           'updated_time' => getTime(),
           'status' => 1,
           'source' => 6,
+          'operate_id' => 0,
           'wxapp_id' => $param['wxapp_id'],
           'line_id' => $param['line_id'],
         ];
@@ -714,12 +715,12 @@ class Package extends Controller
           'volume' => $volumn,
           'pack_free' => 0,
           'member_id' => $this->user['user_id'],
-          'country' => $address['country'],
-          'unpack_time' => getTime(),  //提交打包时间
-          'created_time' => getTime(),  
+          'unpack_time' => getTime(),
+          'created_time' => getTime(),
           'updated_time' => getTime(),
           'status' => 1,
           'line_id' => $line_id,
+          'operate_id' => 0,
           'wxapp_id' => \request()->get('wxapp_id'),
         ];
         
@@ -795,18 +796,23 @@ class Package extends Controller
           ];
           $tplmsgsetting = SettingModel::getItem('tplMsg');
         //   dump($tplmsgsetting);die;
-          if($tplmsgsetting['is_oldtps']==1){
-              //循环通知员工打包消息 
-              foreach ($clerk as $key => $val){
-                  $data['clerkid'] = $val['user_id'];
-                  Message::send('order.packageit',$data);   
+          try {
+              if($tplmsgsetting['is_oldtps']==1){
+                  //循环通知员工打包消息 
+                  foreach ($clerk as $key => $val){
+                      $data['clerkid'] = $val['user_id'];
+                      Message::send('order.packageit',$data);   
+                  }
+              }else{
+                  foreach ($clerk as $key => $val){
+                      $data['member_id'] = $val['user_id'];
+                      Message::send('package.outapply',$data);
+                  }
+                  
               }
-          }else{
-              foreach ($clerk as $key => $val){
-                  $data['member_id'] = $val['user_id'];
-                  Message::send('package.outapply',$data);
-              }
-              
+          } catch (\Exception $e) {
+              // 消息发送失败不影响打包流程，只记录日志
+              // 可以在这里记录日志：\think\Log::error('消息发送失败: ' . $e->getMessage());
           }
          }
         
@@ -897,6 +903,7 @@ class Package extends Controller
           'updated_time' => getTime(),
           'status' => 1,
           'line_id' => $line_id,
+          'operate_id' => 0,
           'wxapp_id' => \request()->get('wxapp_id'),
         ];
         $inpack = (new Inpack())->insertGetId($inpackOrder); 
@@ -1120,17 +1127,68 @@ class Package extends Controller
         foreach($data as $k => $v){
             $orderItem[] = $v['id'];
         }
+        
+        // 获取包裹商品分类
         $orderIdItem = [];
         $orderItemList = (new PackageItemModel())->whereIn('order_id',$orderItem)->field('order_id,id,class_name')->select();
-        if ($orderItemList->isEmpty()){
-            return $data;
+        if (!$orderItemList->isEmpty()){
+            foreach ($orderItemList as $v){
+                $orderIdItem[$v['order_id']][] = $v->toArray();
+            }
         }
-        foreach ($orderItemList as $v){
-            $orderIdItem[$v['order_id']][] = $v->toArray();
+        
+        // 获取包裹图片 - 返回所有图片作为数组
+        $packageImages = [];
+        try {
+            $PackageImageModel = new \app\common\model\PackageImage();
+            $imageRelations = $PackageImageModel->with(['file'])->whereIn('package_id', $orderItem)->select();
+            
+            if (!$imageRelations->isEmpty()) {
+                foreach ($imageRelations as $relation) {
+                    $packageId = $relation['package_id'];
+                    if (!isset($packageImages[$packageId])) {
+                        $packageImages[$packageId] = [];
+                    }
+                    // 添加图片URL到数组
+                    if (isset($relation['file']) && isset($relation['file']['file_path'])) {
+                        $packageImages[$packageId][] = $relation['file']['file_path'];
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // 图片加载失败不影响主流程
         }
-        foreach($data as $k =>$v){
-            if (isset($orderIdItem[$v['id']]))
+        
+        // 获取国家信息
+        $countries = [];
+        try {
+            $countryIds = array_filter(array_unique(array_column($data, 'country_id')));
+            if (!empty($countryIds)) {
+                $countryList = (new \app\common\model\Country())->whereIn('id', $countryIds)->select();
+                foreach ($countryList as $country) {
+                    $countries[$country['id']] = $country->toArray();
+                }
+            }
+        } catch (\Exception $e) {
+            // 国家信息加载失败不影响主流程
+        }
+        
+        // 组装数据
+        foreach($data as $k => $v){
+            if (isset($orderIdItem[$v['id']])) {
                 $data[$k]['class_name'] = implode(',',array_column($orderIdItem[$v['id']],'class_name'));
+            }
+            // 返回图片数组
+            if (isset($packageImages[$v['id']]) && !empty($packageImages[$v['id']])) {
+                $data[$k]['images'] = $packageImages[$v['id']];
+            }
+            if (isset($countries[$v['country_id']])) {
+                $data[$k]['country'] = $countries[$v['country_id']];
+            }
+            // 唛头字段重命名为mark以保持一致性
+            if (isset($v['usermark']) && !empty($v['usermark'])) {
+                $data[$k]['mark'] = $v['usermark'];
+            }
         }
         return $data;
      }
@@ -1164,15 +1222,146 @@ class Package extends Controller
         if(!\request()->get('token')){
             return $this->renderError('请先登录');
         }
-        $field = 'id,inpack_id,country_id,order_sn,storage_id,express_num,created_time,source,status,usermark';
+        
+        // 获取分页参数
+        $page = \request()->get('page', 1);
+        $pageSize = \request()->get('page_size', 20);
+        $keyword = \request()->get('keyword', '');
+        $status = \request()->get('status');
+        
+        $field = 'id,inpack_id,country_id,order_sn,storage_id,express_num,created_time,source,status,usermark,weight,length,width,height,volume';
+        
+        // 构建基础查询条件
         $where = [
           'is_delete' => 0,
-          'status' =>\request()->get('status'),
           'member_id' => $this->user['user_id']
         ];
-        $data = (new PackageModel())->query($where,$field);
-        $data = $this->getPackItemList($data);
-        return $this->renderSuccess($data);
+        
+        // 构建查询
+        $query = (new PackageModel())->where($where);
+        
+        // 处理状态筛选 - 根据原有逻辑
+        if($status == 2){
+            // 状态2表示已入库，包含状态2,3,4
+            $query->whereIn('status',[2,3,4]);
+        } elseif($status == 56){
+            // 状态56表示已出库（待支付+已支付）
+            $query->whereIn('status',[5,6]);
+        } else {
+            // 其他状态直接查询
+            $query->where('status', $status);
+        }
+        
+        // 添加关键词搜索 - 支持多字段模糊搜索
+        if(!empty($keyword)){
+            $query->where(function($q) use ($keyword) {
+                $q->whereOr('express_num', 'like', '%' . $keyword . '%')
+                  ->whereOr('order_sn', 'like', '%' . $keyword . '%')
+                  ->whereOr('usermark', 'like', '%' . $keyword . '%');
+            });
+        }
+        
+        // 使用分页查询，包含关联数据（不使用嵌套关联，避免bind问题）
+        // 注意：packageimage 关联可能受全局作用域影响，需要单独处理
+        $data = $query->with(['country','storage','inpack'])
+                      ->field($field)
+                      ->order('created_time DESC')
+                      ->paginate($pageSize, false, ['page' => $page]);
+        
+        // 优化后的数据处理 - 直接使用关联数据
+        $list = $data->toArray();
+        
+        // 批量获取所有包裹的物品分类（避免N+1查询）
+        $packageIds = [];
+        if(isset($list['data']) && is_array($list['data'])){
+            $packageIds = array_column($list['data'], 'id');
+        }
+        
+        // 一次性查询所有包裹的图片（使用原生查询避免全局作用域问题）
+        $imageFiles = [];
+        $packageImageMap = [];
+        if(!empty($packageIds)){
+            // 直接查询 package_image 表，不受全局作用域限制
+            $packageImages = \think\Db::name('package_image')
+                ->whereIn('package_id', $packageIds)
+                ->field('package_id,image_id')
+                ->select();
+            
+            // 收集所有图片ID
+            $allImageIds = [];
+            foreach($packageImages as $img){
+                $allImageIds[] = $img['image_id'];
+                if(!isset($packageImageMap[$img['package_id']])){
+                    $packageImageMap[$img['package_id']] = [];
+                }
+                $packageImageMap[$img['package_id']][] = $img['image_id'];
+            }
+            
+            // 批量查询文件信息
+            if(!empty($allImageIds)){
+                $files = \think\Db::name('upload_file')
+                    ->whereIn('file_id', array_unique($allImageIds))
+                    ->field('file_id,file_name,file_url,storage')
+                    ->select();
+                
+                foreach($files as $file){
+                    // 手动构建完整路径
+                    if($file['storage'] === 'local'){
+                        $filePath = request()->domain() . '/uploads/' . $file['file_name'];
+                    } else {
+                        $filePath = $file['file_url'] . '/' . $file['file_name'];
+                    }
+                    $imageFiles[$file['file_id']] = $filePath;
+                }
+            }
+        }
+        
+        // 一次性查询所有包裹的物品分类
+        $packageItems = [];
+        if(!empty($packageIds)){
+            $items = (new PackageItemModel())
+                ->whereIn('order_id', $packageIds)
+                ->field('order_id,class_name')
+                ->select();
+            
+            if (!$items->isEmpty()) {
+                foreach ($items as $item) {
+                    $orderId = $item['order_id'];
+                    if (!isset($packageItems[$orderId])) {
+                        $packageItems[$orderId] = [];
+                    }
+                    $packageItems[$orderId][] = $item['class_name'];
+                }
+            }
+        }
+        
+        // 处理每个包裹的数据
+        if(isset($list['data']) && is_array($list['data'])){
+            foreach($list['data'] as $k => $v){
+                // 处理图片数组 - 使用批量查询的文件信息
+                $images = [];
+                if (isset($packageImageMap[$v['id']])) {
+                    foreach ($packageImageMap[$v['id']] as $imageId) {
+                        if (isset($imageFiles[$imageId])) {
+                            $images[] = $imageFiles[$imageId];
+                        }
+                    }
+                }
+                $list['data'][$k]['images'] = $images;
+                
+                // 唛头字段重命名为mark
+                if (isset($v['usermark']) && !empty($v['usermark'])) {
+                    $list['data'][$k]['mark'] = $v['usermark'];
+                }
+                
+                // 使用批量查询的结果设置物品分类
+                if (isset($packageItems[$v['id']])) {
+                    $list['data'][$k]['class_name'] = implode(',', $packageItems[$v['id']]);
+                }
+            }
+        }
+        
+        return $this->renderSuccess($list);
      }
      
      
@@ -1207,10 +1396,16 @@ class Package extends Controller
           'is_delete' => 0,
           'member_id' => $this->user['user_id']
         ];
+        
+        // 已出库数量（待支付+已支付）
+        $outboundcount = $PackageModel->where($where)->whereIn('status', [5, 6])->count();
+        
         $data = [
             'nocount' => $PackageModel->querycount($where,$status=1),
             'yescount' => $PackageModel->querycount($where,$status=2),
-            'yetsend' => $PackageModel->querycount($where,$status=3),
+            'outboundcount' => $outboundcount, // 已出库（待支付+已支付）
+            'yessend' => $PackageModel->querycount($where,$status=9), // 已发货
+            'completedcount' => $PackageModel->querycount($where,$status=10), // 已完成（已收货）
             'procount' => $PackageModel->querycount($where,$status=-1),
         ];
         return $this->renderSuccess($data);
@@ -1668,16 +1863,19 @@ class Package extends Controller
      
      //集运订单信息详情
      public function details_pack(){
-        $field_group = [
-           'edit' => [
-              'id,order_sn,pack_ids,storage_id,free,pack_free,other_free,address_id,weight,cale_weight,volume,length,width,height,status,line_id,remark,country,t_order_sn,user_coupon_id,user_coupon_money,pay_type,is_pay,is_pay_type'
-           ],
-        ];
+         $field_group = [
+            'edit' => [
+              'id,order_sn,pack_ids,storage_id,free,pack_free,other_free,address_id,weight,cale_weight,volume,length,width,height,status,line_id,remark,country_id,t_order_sn,user_coupon_id,user_coupon_money,pay_type,is_pay,is_pay_type'
+            ],
+         ];
         $id = \request()->post('id');
         $couponId = \request()->post('coupon_id');//优惠券id
         
-        $method = $this->postData('method');
-        $data = (new Inpack())->getDetails($id,$field_group[$method[0]]);
+        // 修复：如果没有传 method 参数，默认使用 'edit'
+        $methodData = $this->postData('method');
+        $method = isset($methodData[0]) ? $methodData[0] : 'edit';
+        
+        $data = (new Inpack())->getDetails($id,$field_group[$method]);
         $package = (new PackageModel())->where('id','in',explode(',',$data['pack_ids']))->field('id,express_num,price,express_name,entering_warehouse_time,remark,weight,height,length,width')->with(['packageimage.file'])->select();
         $packItem = (new PackageItemModel())->where('order_id','in',explode(',',$data['pack_ids']))->field('class_name,id,class_id,order_id')->select();
         $packItemGroup = [];
@@ -1708,6 +1906,11 @@ class Package extends Controller
             $data['image'] = $data['line']['image'];
         }
         return $this->renderSuccess($data);
+     }
+     
+     // 添加驼峰命名的别名方法，用于前端调用
+     public function detailsPack(){
+         return $this->details_pack();
      }
      
      //计算使用优惠券后的价格；
@@ -1954,7 +2157,8 @@ class Package extends Controller
              return $this->renderError('包裹状态错误');
          }
 
-         (new Inpack())->where(['id'=>$id])->update(['status'=>7]);
+         // 更新订单状态为已完成(8)而不是已收货(7)
+         (new Inpack())->where(['id'=>$id])->update(['status'=>8]);
          $pack_ids = explode(',',$pack['pack_ids']);
          $up = (new PackageModel())->where('id','in',$pack_ids)->update(['status'=>10]);
          foreach($pack_ids as $v){

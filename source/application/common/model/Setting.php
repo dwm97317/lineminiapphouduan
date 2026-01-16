@@ -941,11 +941,342 @@ class Setting extends BaseModel
                             'title' => '佣金提现失败通知',
                         ],
                     ],
-          
                 ],
             ],
-            
+            // LINE小程序设置
+            'line_config' => [
+                'key' => 'line_config',
+                'describe' => 'LINE小程序设置',
+                'values' => [
+                    'is_enable' => '0',
+                    'channel_id' => '',
+                    'channel_secret' => '',
+                    'liff_id' => '',
+                    'endpoint_url' => '',
+                    'liff_size' => 'full',
+                    'scopes' => ['openid', 'profile'],
+                    'google_maps_key' => '',
+                ]
+            ],
+
+            // LINE 消息通知
+            'line_messaging' => [
+                'key' => 'line_messaging',
+                'describe' => 'LINE消息通知',
+                'values' => [
+                    // Channel 配置
+                    'is_enable' => '0',
+                    'channel_id' => '',
+                    'channel_secret' => '',
+                    'access_token' => '',
+                    
+                    // API 设置
+                    'api_base_url' => 'https://api.line.me/v2/bot',
+                    'timeout' => 30,
+                    'retry_times' => 3,
+                    'log_enabled' => '1',
+                    
+                    // LIFF 配置
+                    'liff_id' => '',
+                    'liff_url' => '',
+                    
+                    // 消息模板配置
+                    'templates' => [
+                        // 入库通知
+                        'inwarehouse' => [
+                            'is_enable' => '0',
+                            'name' => '包裹入库通知',
+                            'alt_text' => '📦 包裹入库通知',
+                            'priority' => 'high',
+                            'send_delay' => 0,
+                            'flex_template' => json_encode([
+                                'type' => 'bubble',
+                                'header' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        [
+                                            'type' => 'text',
+                                            'text' => '📦 包裹入库通知',
+                                            'weight' => 'bold',
+                                            'size' => 'lg',
+                                            'color' => '#1DB446'
+                                        ]
+                                    ],
+                                    'backgroundColor' => '#F0FFF0'
+                                ],
+                                'body' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '仓库：{{shop_name}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '快递单号：{{express_num}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '入库时间：{{entering_warehouse_time}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '重量：{{weight}}kg', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'separator', 'margin' => 'md'],
+                                        ['type' => 'text', 'text' => '{{remark}}', 'size' => 'sm', 'color' => '#888888', 'margin' => 'md', 'wrap' => true]
+                                    ],
+                                    'spacing' => 'sm'
+                                ],
+                                'footer' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        [
+                                            'type' => 'button',
+                                            'action' => ['type' => 'uri', 'label' => '查看详情', 'uri' => '{{detail_url}}'],
+                                            'style' => 'primary',
+                                            'color' => '#1DB446'
+                                        ]
+                                    ]
+                                ]
+                            ]),
+                            'variables' => ['shop_name', 'express_num', 'entering_warehouse_time', 'weight', 'remark', 'detail_url']
+                        ],
+                        
+                        // 发货通知
+                        'sendpack' => [
+                            'is_enable' => '0',
+                            'name' => '发货通知',
+                            'alt_text' => '🚚 发货通知',
+                            'priority' => 'high',
+                            'send_delay' => 0,
+                            'flex_template' => json_encode([
+                                'type' => 'bubble',
+                                'header' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '🚚 发货通知', 'weight' => 'bold', 'size' => 'lg', 'color' => '#0066CC']
+                                    ],
+                                    'backgroundColor' => '#E6F3FF'
+                                ],
+                                'body' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '订单号：{{order_sn}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '国际单号：{{t_order_sn}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '重量：{{weight}}kg', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '线路：{{t_name}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '发货时间：{{send_time}}', 'size' => 'sm', 'wrap' => true]
+                                    ],
+                                    'spacing' => 'sm'
+                                ],
+                                'footer' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        [
+                                            'type' => 'button',
+                                            'action' => ['type' => 'uri', 'label' => '查看物流', 'uri' => '{{tracking_url}}'],
+                                            'style' => 'primary',
+                                            'color' => '#0066CC'
+                                        ]
+                                    ]
+                                ]
+                            ]),
+                            'variables' => ['order_sn', 't_order_sn', 'weight', 't_name', 'send_time', 'tracking_url']
+                        ],
+                        
+                        // 支付成功通知
+                        'payment' => [
+                            'is_enable' => '0',
+                            'name' => '支付成功通知',
+                            'alt_text' => '✅ 支付成功',
+                            'priority' => 'high',
+                            'send_delay' => 0,
+                            'flex_template' => json_encode([
+                                'type' => 'bubble',
+                                'header' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '✅ 支付成功', 'weight' => 'bold', 'size' => 'lg', 'color' => '#FF6B00']
+                                    ],
+                                    'backgroundColor' => '#FFF5E6'
+                                ],
+                                'body' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '订单号：{{order_sn}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '支付金额：¥{{total_free}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '支付时间：{{pay_time}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'separator', 'margin' => 'md'],
+                                        ['type' => 'text', 'text' => '{{remark}}', 'size' => 'sm', 'color' => '#888888', 'margin' => 'md', 'wrap' => true]
+                                    ],
+                                    'spacing' => 'sm'
+                                ]
+                            ]),
+                            'variables' => ['order_sn', 'total_free', 'pay_time', 'remark']
+                        ],
+                        
+                        // 打包完成通知
+                        'dabaosuccess' => [
+                            'is_enable' => '0',
+                            'name' => '打包完成通知',
+                            'alt_text' => '📋 打包完成',
+                            'priority' => 'normal',
+                            'send_delay' => 0,
+                            'flex_template' => json_encode([
+                                'type' => 'bubble',
+                                'header' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '📋 打包完成', 'weight' => 'bold', 'size' => 'lg', 'color' => '#9933FF']
+                                    ],
+                                    'backgroundColor' => '#F5E6FF'
+                                ],
+                                'body' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '订单号：{{order_sn}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '包裹数量：{{pack_count}}件', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '总重量：{{weight}}kg', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '体积：{{volume}}cm³', 'size' => 'sm', 'wrap' => true]
+                                    ],
+                                    'spacing' => 'sm'
+                                ],
+                                'footer' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        [
+                                            'type' => 'button',
+                                            'action' => ['type' => 'uri', 'label' => '去支付', 'uri' => '{{pay_url}}'],
+                                            'style' => 'primary',
+                                            'color' => '#9933FF'
+                                        ]
+                                    ]
+                                ]
+                            ]),
+                            'variables' => ['order_sn', 'pack_count', 'weight', 'volume', 'pay_url']
+                        ],
+                        
+                        // 付款单生成通知
+                        'payorder' => [
+                            'is_enable' => '0',
+                            'name' => '付款单生成通知',
+                            'alt_text' => '💰 付款单生成',
+                            'priority' => 'normal',
+                            'send_delay' => 0,
+                            'flex_template' => json_encode([
+                                'type' => 'bubble',
+                                'header' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '💰 付款单生成', 'weight' => 'bold', 'size' => 'lg', 'color' => '#FF3366']
+                                    ],
+                                    'backgroundColor' => '#FFE6F0'
+                                ],
+                                'body' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '订单号：{{order_sn}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '应付金额：¥{{amount}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '生成时间：{{create_time}}', 'size' => 'sm', 'wrap' => true]
+                                    ],
+                                    'spacing' => 'sm'
+                                ],
+                                'footer' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        [
+                                            'type' => 'button',
+                                            'action' => ['type' => 'uri', 'label' => '立即支付', 'uri' => '{{pay_url}}'],
+                                            'style' => 'primary',
+                                            'color' => '#FF3366'
+                                        ]
+                                    ]
+                                ]
+                            ]),
+                            'variables' => ['order_sn', 'amount', 'create_time', 'pay_url']
+                        ],
+                        
+                        // 到仓通知
+                        'toshop' => [
+                            'is_enable' => '0',
+                            'name' => '到仓通知',
+                            'alt_text' => '🏪 到仓通知',
+                            'priority' => 'normal',
+                            'send_delay' => 0,
+                            'flex_template' => json_encode([
+                                'type' => 'bubble',
+                                'header' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '🏪 到仓通知', 'weight' => 'bold', 'size' => 'lg', 'color' => '#00CC99']
+                                    ],
+                                    'backgroundColor' => '#E6FFF5'
+                                ],
+                                'body' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '仓库：{{shop_name}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '快递单号：{{express_num}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '到仓时间：{{arrival_time}}', 'size' => 'sm', 'wrap' => true]
+                                    ],
+                                    'spacing' => 'sm'
+                                ]
+                            ]),
+                            'variables' => ['shop_name', 'express_num', 'arrival_time']
+                        ],
+                        
+                        // 出库申请通知
+                        'outapply' => [
+                            'is_enable' => '0',
+                            'name' => '出库申请通知',
+                            'alt_text' => '📤 出库申请',
+                            'priority' => 'normal',
+                            'send_delay' => 0,
+                            'flex_template' => json_encode([
+                                'type' => 'bubble',
+                                'header' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '📤 出库申请', 'weight' => 'bold', 'size' => 'lg', 'color' => '#FF9900']
+                                    ],
+                                    'backgroundColor' => '#FFF5E6'
+                                ],
+                                'body' => [
+                                    'type' => 'box',
+                                    'layout' => 'vertical',
+                                    'contents' => [
+                                        ['type' => 'text', 'text' => '申请单号：{{apply_sn}}', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '包裹数量：{{package_count}}件', 'size' => 'sm', 'wrap' => true],
+                                        ['type' => 'text', 'text' => '申请时间：{{apply_time}}', 'size' => 'sm', 'wrap' => true]
+                                    ],
+                                    'spacing' => 'sm'
+                                ]
+                            ]),
+                            'variables' => ['apply_sn', 'package_count', 'apply_time']
+                        ]
+                    ]
+                ]
+            ],
+            // LINE Pay 支付设置
+            'line_pay' => [
+                'key' => 'line_pay',
+                'describe' => 'LINE Pay支付设置',
+                'values' => [
+                    'is_enable' => '0',
+                    'channel_id' => '',
+                    'channel_secret' => '',
+                    'is_test' => '1',
+                ]
+            ],
         ];
     }
+
+
 
 }

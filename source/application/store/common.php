@@ -23,7 +23,7 @@ function checkPrivilege($url, $strict = true)
  */
 function dataMapRender($data,$field,$map){
      foreach ($data as $k => $v){
-        $data[$k][$field] = $map[$v[$field]];
-     } 
+        $data[$k][$field] = $map[$v[$field]] ?? $v[$field];
+     }
      return $data;
 }

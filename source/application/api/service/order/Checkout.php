@@ -839,12 +839,18 @@ class Checkout
             'wxapp_id' => $this->wxapp_id,
             'name' => $address['name'],
             'phone' => $address['phone'],
+            'country' => $address['country'] ?? '',
             'province_id' => $address['province'],
             'city_id' => $address['city'],
             'region_id' => $address['region'],
+            'sub_district' => $address['sub_district'] ?? '',
             'detail' => $address['detail'],
+            'latitude' => $address['latitude'] ?? 0,
+            'longitude' => $address['longitude'] ?? 0,
+            'postal_code' => $address['postal_code'] ?? '',
         ]);
     }
+
 
     /**
      * 保存上门自提联系人

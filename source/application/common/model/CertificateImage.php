@@ -11,6 +11,7 @@ class CertificateImage extends BaseModel
 {
     protected $name = 'certificate_image';
     protected $updateTime = false;
+    protected $autoWriteTimestamp = false; // Disable automatic timestamp handling
 
     /**
      * 关联文件库

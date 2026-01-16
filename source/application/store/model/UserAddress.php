@@ -13,18 +13,34 @@ class UserAddress extends UserAddressModel
 {
     
     /**
-     * 获取列表记录
+     * 获取列表记录（用于后台管理）
      * @return \think\Paginator
      * @throws \think\exception\DbException
      */
-    public function getList($user_id)
+    public function getList($user_id = null)
     {
-        return $this
-            ->where('address_type',0)
-            ->where('user_id',$user_id)
-            ->paginate(15, false, [
-                'query' => request()->request()
-            ]);
+        $query = $this->alias('a')
+            ->field('a.*, u.nickName, u.user_code')
+            ->join('user u', 'a.user_id = u.user_id', 'LEFT')
+            ->where('a.address_type', 0);
+        
+        // 如果指定了用户ID，则筛选该用户的地址
+        if ($user_id !== null) {
+            $query->where('a.user_id', $user_id);
+        }
+        
+        // 搜索功能
+        $search = request()->get('search');
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->whereOr('u.nickName', 'like', '%' . $search . '%')
+                  ->whereOr('a.user_id', 'like', '%' . $search . '%');
+            });
+        }
+        
+        return $query->paginate(15, false, [
+            'query' => request()->request()
+        ]);
     }
     
     

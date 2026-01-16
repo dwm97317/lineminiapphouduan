@@ -688,6 +688,13 @@ return [
                 'index' => 'setting/paytype',
             ],
             [
+                'name' => 'LINE 配置',
+                'index' => 'setting.line_config/index',
+                'uris' => [
+                    'setting.line_config/index',
+                ],
+            ],
+            [
                 'name' => '小程序导航',
                 'index' => 'setting.nav/index',
             ],
