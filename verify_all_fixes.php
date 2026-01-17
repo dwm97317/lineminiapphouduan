@@ -1,161 +1,155 @@
 <?php
 /**
- * 验证所有唛头修复是否已应用
- * Verify All Usermark Fixes Applied
+ * 验证所有修复是否生效
  */
 
-echo "=== 唛头保存功能修复验证 ===\n";
-echo "Usermark Save Function Fix Verification\n\n";
+echo "=== 推荐奖励系统配置 - 修复验证 ===\n\n";
 
-$allPassed = true;
+$checks = [];
 
-// 1. 检查 HTML 修复
-echo "【1】HTML 修复检查\n";
-echo "文件: source/application/store/view/package/index/add.php\n";
+// 1. 检查控制器文件
+echo "1. 检查控制器分组逻辑修复...\n";
+$controllerFile = __DIR__ . '/source/application/store/controller/setting/Referral.php';
+$controllerContent = file_get_contents($controllerFile);
 
-$addFile = 'source/application/store/view/package/index/add.php';
-if (file_exists($addFile)) {
-    $content = file_get_contents($addFile);
-    
-    // 检查 name="data[mark]" 的数量
-    $nameCount = preg_match_all('/name="data\[mark\]"/', $content, $matches);
-    
-    if ($nameCount == 1) {
-        echo "  ✅ PASS: 只有 1 个 name=\"data[mark]\" (hidden field)\n";
-    } else {
-        echo "  ❌ FAIL: 找到 $nameCount 个 name=\"data[mark]\" (应该只有 1 个)\n";
-        $allPassed = false;
-    }
-    
-    // 检查是否有 usermarkplus hidden field
-    if (strpos($content, 'id="usermarkplus"') !== false && 
-        strpos($content, 'type="hidden"') !== false) {
-        echo "  ✅ PASS: 找到 hidden field (id=\"usermarkplus\")\n";
-    } else {
-        echo "  ❌ FAIL: 未找到 hidden field\n";
-        $allPassed = false;
-    }
+if (strpos($controllerContent, "is_array(\$task['user_type'])") !== false) {
+    echo "   ✓ 控制器已修复（包含数组处理逻辑）\n";
+    $checks['controller'] = true;
 } else {
-    echo "  ❌ FAIL: 文件不存在\n";
-    $allPassed = false;
+    echo "   ✗ 控制器未修复（缺少数组处理逻辑）\n";
+    $checks['controller'] = false;
 }
 
-echo "\n";
+// 2. 检查视图文件
+echo "\n2. 检查视图复选框样式...\n";
+$viewFile = __DIR__ . '/source/application/store/view/setting/referral/config.php';
+$viewContent = file_get_contents($viewFile);
 
-// 2. 检查 JavaScript 修复
-echo "【2】JavaScript 修复检查\n";
-echo "文件: source/application/store/view/package/index/add.php\n";
-
-if (file_exists($addFile)) {
-    $content = file_get_contents($addFile);
-    
-    // 检查是否有 $("#usermarkplus").val(usermark)
-    if (strpos($content, '$("#usermarkplus").val(usermark)') !== false ||
-        strpos($content, '$(\'#usermarkplus\').val(usermark)') !== false) {
-        echo "  ✅ PASS: 找到赋值代码 \$(\"#usermarkplus\").val(usermark)\n";
-    } else {
-        echo "  ❌ FAIL: 未找到赋值代码\n";
-        $allPassed = false;
-    }
-    
-    // 检查 printlabel 函数是否存在
-    if (strpos($content, 'function printlabel()') !== false) {
-        echo "  ✅ PASS: 找到 printlabel() 函数\n";
-    } else {
-        echo "  ❌ FAIL: 未找到 printlabel() 函数\n";
-        $allPassed = false;
-    }
+if (strpos($viewContent, 'data-am-ucheck') !== false) {
+    echo "   ✓ 视图已添加Amazeui样式\n";
+    $checks['view'] = true;
 } else {
-    echo "  ❌ FAIL: 文件不存在\n";
-    $allPassed = false;
+    echo "   ✗ 视图未添加Amazeui样式\n";
+    $checks['view'] = false;
 }
 
-echo "\n";
+// 3. 检查数据库连接
+echo "\n3. 检查数据库连接...\n";
+$config = [
+    'host' => '103.119.1.84',
+    'database' => 'xinsuju',
+    'username' => 'xinsuju',
+    'password' => 'cJGzwZTDCLHzWXN4',
+    'port' => '3306',
+    'charset' => 'utf8',
+];
 
-// 3. 检查 PHP 后端修复
-echo "【3】PHP 后端修复检查\n";
-echo "文件: source/application/store/model/Package.php\n";
-
-$packageFile = 'source/application/store/model/Package.php';
-if (file_exists($packageFile)) {
-    $content = file_get_contents($packageFile);
+try {
+    $pdo = new PDO(
+        "mysql:host={$config['host']};port={$config['port']};dbname={$config['database']};charset={$config['charset']}",
+        $config['username'],
+        $config['password']
+    );
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    echo "   ✓ 数据库连接成功\n";
+    $checks['database'] = true;
     
-    // 检查是否使用了 null 合并运算符
-    if (strpos($content, "(\$result['usermark'] ?? '')") !== false) {
-        echo "  ✅ PASS: 找到 null 合并运算符 ??\n";
+    // 4. 检查任务配置数据
+    echo "\n4. 检查任务配置数据...\n";
+    $stmt = $pdo->query("SELECT COUNT(*) as count FROM yoshop_referral_task_config WHERE wxapp_id = 10001");
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($result['count'] >= 3) {
+        echo "   ✓ 任务配置数据存在（{$result['count']}条）\n";
+        $checks['data'] = true;
+        
+        // 显示任务详情
+        $stmt = $pdo->query("SELECT id, config_name, user_type, is_enabled, is_required FROM yoshop_referral_task_config WHERE wxapp_id = 10001 ORDER BY user_type, id");
+        $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo "\n   任务列表:\n";
+        foreach ($tasks as $task) {
+            $userTypeText = $task['user_type'] == 1 ? '推荐人' : '被推荐人';
+            $enabledText = $task['is_enabled'] ? '启用' : '禁用';
+            $requiredText = $task['is_required'] ? '必须' : '可选';
+            echo "   - ID {$task['id']}: {$task['config_name']} ({$userTypeText}, {$enabledText}, {$requiredText})\n";
+        }
     } else {
-        echo "  ❌ FAIL: 未找到 null 合并运算符\n";
-        $allPassed = false;
+        echo "   ✗ 任务配置数据不足\n";
+        $checks['data'] = false;
     }
     
-    // 检查 uodatepackStatus 方法是否存在
-    if (strpos($content, 'function uodatepackStatus') !== false ||
-        strpos($content, 'public function uodatepackStatus') !== false) {
-        echo "  ✅ PASS: 找到 uodatepackStatus() 方法\n";
-    } else {
-        echo "  ❌ FAIL: 未找到 uodatepackStatus() 方法\n";
-        $allPassed = false;
-    }
-} else {
-    echo "  ❌ FAIL: 文件不存在\n";
-    $allPassed = false;
+} catch (PDOException $e) {
+    echo "   ✗ 数据库连接失败: " . $e->getMessage() . "\n";
+    $checks['database'] = false;
+    $checks['data'] = false;
 }
 
-echo "\n";
-
-// 4. 数据库连接测试
-echo "【4】数据库连接测试\n";
-
-$host = '103.119.1.84';
-$username = 'xinsuju';
-$password = 'cJGzwZTDCLHzWXN4';
-$database = 'xinsuju';
-
-$conn = new mysqli($host, $username, $password, $database);
-$conn->set_charset('utf8');
-
-if ($conn->connect_error) {
-    echo "  ❌ FAIL: 数据库连接失败\n";
-    $allPassed = false;
-} else {
-    echo "  ✅ PASS: 数据库连接成功\n";
-    
-    // 检查最近的包裹
-    $sql = "SELECT COUNT(*) as count FROM yoshop_package WHERE is_delete = 0";
-    $result = $conn->query($sql);
-    if ($result && $row = $result->fetch_assoc()) {
-        echo "  ✅ PASS: 可以查询包裹表 (总数: {$row['count']})\n";
+// 5. 检查模板缓存
+echo "\n5. 检查模板缓存...\n";
+$cacheDir = __DIR__ . '/runtime/temp';
+if (is_dir($cacheDir)) {
+    $files = glob($cacheDir . '/*');
+    if (empty($files)) {
+        echo "   ✓ 模板缓存已清空\n";
+        $checks['cache'] = true;
     } else {
-        echo "  ❌ FAIL: 无法查询包裹表\n";
-        $allPassed = false;
+        echo "   ⚠ 模板缓存存在 (" . count($files) . " 个文件)\n";
+        echo "   建议运行: php clear_all_cache.php\n";
+        $checks['cache'] = false;
     }
-    
-    $conn->close();
+} else {
+    echo "   ✓ 模板缓存目录不存在（正常）\n";
+    $checks['cache'] = true;
 }
-
-echo "\n";
 
 // 总结
-echo "=== 验证总结 ===\n";
-if ($allPassed) {
-    echo "🟢 所有检查通过！All checks passed!\n";
-    echo "\n";
-    echo "修复状态:\n";
-    echo "  ✅ HTML 修复: 完成\n";
-    echo "  ✅ JavaScript 修复: 完成\n";
-    echo "  ✅ PHP 后端修复: 完成\n";
-    echo "  ✅ 数据库连接: 正常\n";
-    echo "\n";
-    echo "下一步: 请按照 FINAL_USERMARK_TEST_CHECKLIST.md 进行功能测试\n";
-} else {
-    echo "🔴 有检查未通过！Some checks failed!\n";
-    echo "\n";
-    echo "请检查上述失败的项目并修复。\n";
+echo "\n" . str_repeat("=", 50) . "\n";
+echo "验证总结\n";
+echo str_repeat("=", 50) . "\n\n";
+
+$allPassed = true;
+foreach ($checks as $name => $passed) {
+    $status = $passed ? '✓ 通过' : '✗ 失败';
+    $nameMap = [
+        'controller' => '控制器修复',
+        'view' => '视图修复',
+        'database' => '数据库连接',
+        'data' => '任务配置数据',
+        'cache' => '模板缓存',
+    ];
+    echo sprintf("%-20s %s\n", $nameMap[$name] . ':', $status);
+    if (!$passed) {
+        $allPassed = false;
+    }
 }
 
 echo "\n";
-echo "详细文档:\n";
-echo "  - USERMARK_JAVASCRIPT_FIX.md (JavaScript 修复)\n";
-echo "  - USERMARK_DUPLICATE_FIELD_FIX.md (HTML 修复)\n";
-echo "  - USERMARK_SAVE_FINAL_FIX.md (PHP 后端修复)\n";
-echo "  - FINAL_USERMARK_TEST_CHECKLIST.md (测试清单)\n";
+
+if ($allPassed) {
+    echo "✓✓✓ 所有检查通过！系统已准备就绪 ✓✓✓\n\n";
+    echo "下一步:\n";
+    echo "1. 访问配置页面: http://localhost:8080/store/setting.referral/config\n";
+    echo "2. 验证任务分组是否正确\n";
+    echo "3. 测试表单提交功能\n";
+} else {
+    echo "✗✗✗ 部分检查未通过，请修复后重试 ✗✗✗\n\n";
+    echo "修复建议:\n";
+    if (!$checks['controller']) {
+        echo "- 重新应用控制器修复\n";
+    }
+    if (!$checks['view']) {
+        echo "- 重新应用视图修复\n";
+    }
+    if (!$checks['database']) {
+        echo "- 检查数据库连接配置\n";
+    }
+    if (!$checks['data']) {
+        echo "- 检查任务配置数据是否存在\n";
+    }
+    if (!$checks['cache']) {
+        echo "- 运行 php clear_all_cache.php 清除缓存\n";
+    }
+}
+
+echo "\n";

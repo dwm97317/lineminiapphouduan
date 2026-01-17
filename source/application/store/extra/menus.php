@@ -695,6 +695,37 @@ return [
                 ],
             ],
             [
+                'name' => '推荐系统',
+                'index' => 'setting.referral/config',
+                'active' => true,
+                'submenu' => [
+                    [
+                        'name' => '推荐配置',
+                        'index' => 'setting.referral/config',
+                        'uris' => [
+                            'setting.referral/config',
+                            'setting.referral/saveConfig',
+                        ],
+                    ],
+                    [
+                        'name' => '推荐关系',
+                        'index' => 'setting.referral/relations',
+                        'uris' => [
+                            'setting.referral/relations',
+                            'setting.referral/invalidateRelation',
+                        ],
+                    ],
+                    [
+                        'name' => '奖励记录',
+                        'index' => 'setting.referral/rewards',
+                        'uris' => [
+                            'setting.referral/rewards',
+                            'setting.referral/recycleReward',
+                        ],
+                    ],
+                ]
+            ],
+            [
                 'name' => '小程序导航',
                 'index' => 'setting.nav/index',
             ],

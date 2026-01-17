@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@liangshanli/mcp-server-mysql": "^3.0.0"
+  }
+}

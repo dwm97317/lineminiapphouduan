@@ -144,6 +144,11 @@ return [
             'name' =>'寄件地址',
             'url_' => '/web/user/jaddress',
             'url' => urlCreate('/web/user/jaddress'),
+         ],
+         [
+            'name' =>'推荐好友',
+            'url_' => '/web/user/referral',
+            'url' => urlCreate('/web/user/referral'),
          ]
        ],
   ],
