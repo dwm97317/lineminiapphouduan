@@ -1,5 +1,12 @@
 # 用户规则 - 集运系统 SAAS 项目
 
+## 语言偏好 (Language Preference)
+**必须严格遵守**：
+1.  **所有对话必须使用中文** (All conversations must be in Chinese).
+2.  **所有文档必须使用中文** (All documentation must be in Chinese).
+3.  **代码注释推荐使用中文** (Code comments are recommended to be in Chinese).
+4.  禁止使用英文回复，除非涉及代码关键字或专用名词。
+
 ## 项目概述
 这是一个**集运系统 SAAS 后端项目**（Zalo集运服务），用于管理跨境物流、包裹集运、订单处理等业务。
 

@@ -748,6 +748,17 @@ return [
                 ],
             ],
             [
+                'name' => '面单配置',
+                'index' => 'setting.waybill_config/index',
+                'uris' => [
+                    'setting.waybill_config/index',
+                    'setting.waybill_config/getConfig',
+                    'setting.waybill_config/saveConfig',
+                    'setting.waybill_config/getFieldList',
+                    'setting.waybill_config/resetConfig',
+                ],
+            ],
+            [
                 'name' => '物流模板',
                 'index' => 'setting/notice'
             ],
