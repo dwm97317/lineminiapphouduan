@@ -51,6 +51,19 @@ class Dealer extends Controller
      */
     public function center()
     {
+        $userId = $this->user['user_id'];
+        
+        // Calculate Order Count
+        $orderCount = (new \app\common\model\dealer\Order())
+            ->where(function($query) use ($userId) {
+                $query->where('first_user_id', $userId)
+                      ->whereOr('second_user_id', $userId)
+                      ->whereOr('third_user_id', $userId);
+            })
+            ->count();
+            
+        $this->dealer['order_count'] = $orderCount;
+
         return $this->renderSuccess([
             // 当前是否为分销商
             'is_dealer' => $this->isDealerUser(),

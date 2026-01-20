@@ -10,6 +10,7 @@ class LineService extends BaseModel
 {
     protected $name = 'line_services';
     protected $updateTime = false;
+    protected $field = true; // 允许所有字段写入
     
     public static  function detail($id){
         return (new static()) ->find($id);

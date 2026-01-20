@@ -242,7 +242,7 @@
                 done: function (data) {
                     $.ajax({
                         type:"POST",
-                        url:'store/apps.dealer.user/addreferee',
+                        url: '<?= url('apps.dealer.user/addreferee') ?>',
                         data:{data,user_id},
                         dataType:'json',
                         success:function(res){

@@ -218,7 +218,11 @@ class TrOrder extends Controller
         $detail['service'] = (new InpackService())->with('service')->where('inpack_id',$id)->select();
         // dump($PackageItem);die;
         //获取订单日志记录
-        $detail['log'] = (new Logistics())->where('order_sn',$detail['order_sn'])->select();
+        if (isset($detail['order_sn'])) {
+            $detail['log'] = (new Logistics())->where('order_sn',$detail['order_sn'])->select();
+        } else {
+            $detail['log'] = [];
+        }
         //获取到用户信息
         $detail['user'] = (new UserModel())->where('user_id',$detail['member_id'])->find();
         //获取到仓库信息
@@ -234,7 +238,7 @@ class TrOrder extends Controller
      * @return false|int
      * @throws \think\exception\DbException
      */
-    public function changeRemark(){
+    public function changeRemark() {
         $param = $this->request->param();
         $model = new Inpack();
         // 直接使用数据库更新，避免保存不存在的字段
@@ -396,6 +400,24 @@ class TrOrder extends Controller
        return  $this->renderSuccess('操作成功','',$result=['price' =>  $payprice ,'balance' =>$userdata['balance']]);
     }
     
+    // 临时测试接口：触发分销逻辑
+    public function test_trigger() {
+        $order_sn = $this->request->param('order_sn');
+        if (empty($order_sn)) return $this->renderError('order_sn is required');
+
+        $inpack = Inpack::where('order_sn', $order_sn)->find();
+        if (!$inpack) return $this->renderError('Order not found');
+
+        // 设置请求参数，模拟前端提交
+        $this->request->withPost([
+            'id' => $inpack['id'],
+            'user_id' => $inpack['member_id']
+        ]);
+
+        // 直接调用 cashforprice 逻辑
+        return $this->cashforprice();
+    }
+
      //使用现金支付支付集运单费用
     public function cashforprice(){
         $data = $this->request->param();
@@ -446,12 +468,23 @@ class TrOrder extends Controller
         if (!$dealerUpUser){
             return false;
         }
-        $firstMoney = $data['amount'] * ($commission['first_money']/100);
+
+        // --- 一级分销计算 (r1) ---
+        // 基数：订单实际金额
+        $firstRate = $commission['first_money']; // 默认全局配置
         $firstUserId = $dealerUpUser['dealer_id'];
-        $remainMoney = $data['amount'] - $firstMoney;
-    
+        
+        // 获取一级分销商等级配置
+        $firstUser = UserModel::detail($firstUserId);
+        // Fix: Allow 0, but fallback if empty string or null. strict check for string length if needed, or just standard isset + !== ''
+        if ($firstUser && isset($firstUser['rating']['setting']['first_money']) && $firstUser['rating']['setting']['first_money'] !== '') {
+             $firstRate = $firstUser['rating']['setting']['first_money'];
+        }
+        $firstMoney = $data['amount'] * ($firstRate / 100);
+
         //给用户分配余额
         $dealeruser->grantMoney($firstUserId,$firstMoney);
+        RefereeModel::updateRefereeStats($firstUserId, $user['user_id'], $firstMoney);
         $dealerCapital[] = [
            'user_id' => $firstUserId,
            'flow_type' => 10,
@@ -461,14 +494,28 @@ class TrOrder extends Controller
            'update_time' => time(),
            'wxapp_id' => $user['wxapp_id'],
         ];
-        # 判断是否进行二级分销
+
+        // --- 二级分销计算 (r2) ---
+        // 基数：一级分销佣金
+        $secondMoney = 0;
+        $secondUserId = 0;
         if ($setting['level'] >= 2) {
             // 查询一级分销用户 是否存在上级
             $dealerSencondUser = $ReffeerModel->where(['user_id'=>$dealerUpUser['dealer_id']])->find();
             if ($dealerSencondUser){
-                $secondMoney = $remainMoney * ($commission['second_money']/100);
-                $remainMoney = $remainMoney - $secondMoney;
+                $secondRate = $commission['second_money']; // 默认全局配置
                 $secondUserId = $dealerSencondUser['dealer_id'];
+                
+                // 获取二级分销商等级配置
+                $secondUser = UserModel::detail($secondUserId);
+                // Fix: Allow 0 override
+                if ($secondUser && isset($secondUser['rating']['setting']['second_money']) && $secondUser['rating']['setting']['second_money'] !== '') {
+                     $secondRate = $secondUser['rating']['setting']['second_money'];
+                }
+                
+                // 级联计算：通过一级佣金计算二级佣金
+                $secondMoney = $firstMoney * ($secondRate/100);
+                
                 $dealerCapital[] = [
                    'user_id' => $secondUserId,
                    'flow_type' => 10,
@@ -479,15 +526,31 @@ class TrOrder extends Controller
                    'wxapp_id' => $user['wxapp_id'],
                 ];
                 $dealeruser->grantMoney($secondUserId,$secondMoney);
+                RefereeModel::updateRefereeStats($secondUserId, $user['user_id'], $secondMoney);
             }
         }
-        # 判断是否进行三级分销
-        if ($setting['level'] == 3) {
+
+        // --- 三级分销计算 (r3) ---
+        // 基数：二级分销佣金
+        $thirdMoney = 0;
+        $thirdUserId = 0;
+        if ($setting['level'] == 3 && isset($dealerSencondUser) && $dealerSencondUser) {
             // 查询二级分销用户 是否存在上级
             $dealerthirddUser = $ReffeerModel->where(['user_id'=>$dealerSencondUser['dealer_id']])->find();
-            if ($dealerSencondUser){
-                $thirdMoney = $remainMoney * ($commission['third_money']/100);
+            if ($dealerthirddUser){
+                $thirdRate = $commission['third_money']; // 默认全局配置
                 $thirdUserId = $dealerthirddUser['dealer_id'];
+                
+                // 获取三级分销商等级配置
+                $thirdUser = UserModel::detail($thirdUserId);
+                // Fix: Allow 0 override
+                if ($thirdUser && isset($thirdUser['rating']['setting']['third_money']) && $thirdUser['rating']['setting']['third_money'] !== '') {
+                     $thirdRate = $thirdUser['rating']['setting']['third_money'];
+                }
+                
+                // 级联计算：通过二级佣金计算三级佣金
+                $thirdMoney = $secondMoney * ($thirdRate/100);
+                
                 $dealerCapital[] = [
                    'user_id' => $thirdUserId,
                    'flow_type' => 10,
@@ -498,6 +561,7 @@ class TrOrder extends Controller
                    'wxapp_id' => $user['wxapp_id'],
                 ];
                 $dealeruser->grantMoney($thirdUserId,$thirdMoney);
+                RefereeModel::updateRefereeStats($thirdUserId, $user['user_id'], $thirdMoney);
             }
         }
        
@@ -507,12 +571,12 @@ class TrOrder extends Controller
             'order_id' => $data['order_id'],
             'order_price' => $data['amount'],
             'order_type' => 30,
-            'first_user_id' => $firstUserId??0,
-            'second_user_id' => $secondUserId??0,
-            'third_user_id' => $thirdUserId??0,
-            'first_money' => $firstMoney??0,
-            'second_money' => $secondMoney??0,
-            'third_money' => $thirdMoney??0,
+            'first_user_id' => $firstUserId,
+            'second_user_id' => $secondUserId,
+            'third_user_id' => $thirdUserId,
+            'first_money' => $firstMoney,
+            'second_money' => $secondMoney,
+            'third_money' => $thirdMoney,
             'is_invalid' => 0,
             'is_settled' => 1,
             'settle_time' => time(),
@@ -520,7 +584,7 @@ class TrOrder extends Controller
             'update_time' => time(),
             'wxapp_id' => $user['wxapp_id']
         ];
-             
+        
         $resCapi = (new Capital())->allowField(true)->saveAll($dealerCapital);
         $resDeal = (new DealerOrder())->allowField(true)->save($dealerOrder);
         if(!$resCapi || !$resDeal){
@@ -558,6 +622,85 @@ class TrOrder extends Controller
             $inpackdata->where('id',$data['id'])->update(['real_payment'=>$payprice,'is_pay'=>1,'is_pay_type'=>0,'pay_time'=>date('Y-m-d H:i:s',time())]);
         }
         return $this->renderSuccess('操作成功');
+    }
+
+    /**
+     * [DEBUG] 级联分销算法验证专用接口
+     * 自动重置余额，输出详细配置来源
+     */
+    public function debugCascadeCommission()
+    {
+        $order_sn = $this->request->param('order_sn', 'TEST_ORDER_001');
+        $debugLog = [];
+        
+        // 0. 强制重置测试账户余额 (避免累加干扰)
+        DealerUser::where('user_id', 'in', [20002, 20003, 20004])->update(['money' => 0, 'total_money' => 0]);
+        $debugLog['reset'] = '已重置 20002/20003/20004 余额为 0';
+        
+        $debugLog['wxapp_id_session'] = $this->getWxappId();
+        
+        // 1. 查找订单
+        $inpack = Inpack::where('order_sn', $order_sn)->find();
+        if (!$inpack) {
+            return json(['code'=>0, 'msg'=>'订单不存在: '.$order_sn]);
+        }
+        $debugLog['order_id'] = $inpack['id'];
+        $debugLog['order_amount'] = $inpack['free'] + $inpack['pack_free'] + $inpack['other_free'];
+        
+        // 2. 获取用户
+        $user = UserModel::detail($inpack['member_id']);
+        if (!$user) {
+            return json(['code'=>0, 'msg'=>'用户不存在', 'data'=>$debugLog]);
+        }
+        
+        // 3. 获取全局佣金配置 (关键诊断)
+        $commission = SettingDealerModel::getItem('commission');
+        $debugLog['global_commission'] = $commission;
+        
+        // 4. 获取一级分销商等级配置 (关键诊断)
+        $ReffeerModel = new RefereeModel;
+        $dealerUpUser = $ReffeerModel->where(['user_id'=>$user['user_id']])->find();
+        if (!$dealerUpUser) {
+            return json(['code'=>0, 'msg'=>'无上级分销商', 'data'=>$debugLog]);
+        }
+        
+        $firstDealerUser = UserModel::detail($dealerUpUser['dealer_id']);
+        $debugLog['L1_dealer_id'] = $dealerUpUser['dealer_id'];
+        $debugLog['L1_rating_id'] = $firstDealerUser['rating_id'] ?? 'null';
+        $debugLog['L1_rating_setting'] = $firstDealerUser['rating']['setting'] ?? 'null';
+        
+        // 计算预期使用的费率
+        $expectedFirstRate = $commission['first_money'];
+        if ($firstDealerUser && isset($firstDealerUser['rating']['setting']['first_money']) && $firstDealerUser['rating']['setting']['first_money'] !== '') {
+            $expectedFirstRate = $firstDealerUser['rating']['setting']['first_money'];
+        }
+        $debugLog['expected_L1_rate'] = $expectedFirstRate . '%';
+        
+        // 5. 执行分销计算
+        $payprice = $debugLog['order_amount'];
+        $result = $this->dealerData([
+            'amount' => $payprice,
+            'order_id' => $inpack['id']
+        ], $user);
+
+        if (!$result) {
+            return json(['code'=>0, 'msg'=>'dealerData() 失败', 'data'=>$debugLog]);
+        }
+        
+        // 6. 读取结果
+        $data = [
+            'debug_log' => $debugLog,
+            'order_sn' => $order_sn,
+            'order_amount' => $payprice,
+            'expected_L1' => $payprice * ($expectedFirstRate / 100),
+            'dealers' => [
+                'L1 (20002)' => DealerUser::where('user_id', 20002)->field('money')->find(),
+                'L2 (20003)' => DealerUser::where('user_id', 20003)->field('money')->find(),
+                'L3 (20004)' => DealerUser::where('user_id', 20004)->field('money')->find(),
+            ],
+        ];
+        
+        return json(['code'=>1, 'msg'=>'验证完成', 'data'=>$data]);
     }
 
     /**

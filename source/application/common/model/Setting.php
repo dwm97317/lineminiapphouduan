@@ -1274,6 +1274,23 @@ class Setting extends BaseModel
                     'is_test' => '1',
                 ]
             ],
+            // 营销设置
+            'marketing' => [
+                'key' => 'marketing',
+                'describe' => '营销设置',
+                'values' => [
+                    // 增值服务推荐
+                    'upsell' => [
+                        'timeout' => 24, // 默认推荐锁定24小时
+                        'require_proof' => 0, // 默认不强制上传凭证
+                    ],
+                    // 代理商白牌化
+                    'agent' => [
+                        'white_label_enable' => 0, // 默认关闭白牌化
+                        'min_level' => 0, // 最低可用等级
+                    ],
+                ]
+            ],
         ];
     }
 

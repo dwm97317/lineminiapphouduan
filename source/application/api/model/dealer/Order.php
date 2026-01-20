@@ -32,27 +32,69 @@ class Order extends OrderModel
     public function getList($user_id, $is_settled = -1)
     {
         $is_settled > 0 && $this->where('is_settled', '=',$is_settled);
-        $data = $this->with(['user','inpack'])
+        // Optimize: Select only necessary user fields
+        $data = $this->with(['user' => function($query){
+            $query->field('user_id,nickName,avatarUrl');
+        }, 'inpack'])
+            ->field('id,order_id,user_id,order_price,create_time,is_settled,first_money,second_money,third_money,first_user_id,second_user_id,third_user_id,order_no,goods_snapshot')
             ->where('first_user_id|second_user_id|third_user_id', '=', $user_id)
             ->order(['create_time' => 'desc'])
             ->paginate(15, false, [
                 'query' => \request()->request()
             ]);
+            
         if ($data->isEmpty()) {
             return $data;
         }
+
         $line = new Line();
         foreach ($data as $k => $value) {
             $data[$k]['line_name'] = $line->where(['id'=>$value['inpack']['line_id']])->value('name');
+            
+            // Fix 1: Consolidation Order No (Use inpack order_sn)
+            $sn = isset($value['inpack']['order_sn']) ? $value['inpack']['order_sn'] : '';
+            if (empty($sn) && isset($value['inpack']['order_no'])) {
+                 $sn = $value['inpack']['order_no'];
+            }
+            if (empty($sn)) {
+                $sn = $value['order_no'];
+            }
+            
+            $data[$k]['order_no'] = $sn;
+            $data[$k]['order_sn'] = $sn;
+            
+            // Fix 2: Commission Money Mismatch
+            $commission = 0;
             if ($value['first_user_id']==$user_id){
-                $data[$k]['money'] = $value['first_money'];
+                $commission = $value['first_money'];
+            } elseif ($value['second_user_id']==$user_id){
+                $commission = $value['second_money'];
+            } elseif ($value['third_user_id']==$user_id){
+                $commission = $value['third_money'];
             }
-            if ($value['second_user_id']==$user_id){
-                $data[$k]['money'] = $value['second_money'];
+            $data[$k]['commission_money'] = $commission;
+            $data[$k]['money'] = $commission;
+            
+            // Optimization: Unset heavy/unused fields
+            // We need goods_snapshot IF we fallback to it for image, but frontend prioritized User Avatar.
+            // Still, checking frontend code: `item.goods && item.goods[0]...`
+            // If we want to keep `goods` working as fallback, we keep goods_snapshot OR parse it then unset.
+            // Current Model `getGoodsSnapshotAttr` parses it automatically.
+            // Let's Parse and Simplify `goods`.
+            $goods = $value['goods_snapshot']; // This is getter, returns array
+            if (!empty($goods) && is_array($goods) && isset($goods[0])) {
+                // Only keep first goods image
+                $data[$k]['goods'] = [[
+                    'image' => ['file_path' => $goods[0]['file_path'] ?? ''],
+                    'goods_name' => $goods[0]['goods_name'] ?? ''
+                ]];
+            } else {
+                 $data[$k]['goods'] = [];
             }
-            if ($value['third_user_id']==$user_id){
-                $data[$k]['money'] = $value['third_money'];
-            }
+            
+            unset($data[$k]['inpack']); // Remove huge inpack object
+            unset($data[$k]['goods_snapshot']); // Remove original snapshot
+            // Fields like first_money, etc., keep for debugging or further logic if needed, or unset.
         }
         return $data;
     }
@@ -100,6 +142,14 @@ class Order extends OrderModel
             'second_user_id' => $dealerUser['second_user_id'],
             'third_user_id' => $dealerUser['third_user_id'],
             'is_settled' => 0,
+            'goods_snapshot' => json_encode(array_map(function($goods) {
+                return [
+                    'goods_id' => $goods['goods_id'],
+                    'goods_name' => $goods['goods_name'],
+                    'goods_num' => $goods['total_num'],
+                    'file_path' => isset($goods['image']['file_path']) ? $goods['image']['file_path'] : '',
+                ];
+            }, is_object($order['goods']) ? $order['goods']->toArray() : $order['goods']), JSON_UNESCAPED_UNICODE),
             'wxapp_id' => $model::$wxapp_id
         ]);
     }

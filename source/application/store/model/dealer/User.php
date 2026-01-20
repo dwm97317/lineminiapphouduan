@@ -73,7 +73,23 @@ class User extends UserModel
      */
     public function edit($data)
     {
-        return $this->allowField(true)->save($data) !== false;
+        return $this->transaction(function () use ($data) {
+            // 更新分销商信息
+            $res = $this->allowField(true)->save($data) !== false;
+            
+            // 更新用户白牌信息
+            if ($this->user) {
+                $userUpdate = [];
+                if (isset($data['brand_name'])) $userUpdate['brand_name'] = $data['brand_name'];
+                if (isset($data['brand_logo_id'])) $userUpdate['brand_logo_id'] = $data['brand_logo_id'];
+                if (isset($data['theme_color'])) $userUpdate['theme_color'] = $data['theme_color'];
+                
+                if (!empty($userUpdate)) {
+                    $this->user->save($userUpdate);
+                }
+            }
+            return $res;
+        });
     }
 
     /**

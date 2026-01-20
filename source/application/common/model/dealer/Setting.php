@@ -55,10 +55,21 @@ class Setting extends BaseModel
     public static function getAll($wxapp_id = null)
     {
         $self = new static;
+        // 确保 wxapp_id 已设置
         is_null($wxapp_id) && $wxapp_id = $self::$wxapp_id;
+        
+        // 如果仍然为空，尝试从 Session 获取 (store 模块)
+        if (empty($wxapp_id)) {
+            $session = \think\Session::get('yoshop_store');
+            if (isset($session['wxapp']['wxapp_id'])) {
+                $wxapp_id = $session['wxapp']['wxapp_id'];
+            }
+        }
        
         if (!$data = Cache::get('dealer_setting_' . $wxapp_id)) {
-            $data = array_column(collection($self::all())->toArray(), null, 'key');
+            // 使用明确的 where 条件过滤 wxapp_id
+            $list = (new static)->where('wxapp_id', '=', $wxapp_id)->select();
+            $data = array_column(collection($list)->toArray(), null, 'key');
             Cache::tag('cache')->set('dealer_setting_' . $wxapp_id, $data);
         }
         return array_merge_multiple($self->defaultData(), $data);

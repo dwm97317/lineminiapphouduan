@@ -2270,7 +2270,6 @@ class Package extends Controller
      public function dealerData($data,$user){
         // 分销商基本设置
         $setting = SettingDealerModel::getItem('basic');
-        $User = (new User());
         $dealeruser = new DealerUser();
         // 是否开启分销功能
         if (!$setting['is_open']) {
@@ -2284,12 +2283,26 @@ class Package extends Controller
         if (!$dealerUpUser){
             return false;
         }
-        $firstMoney = $data['amount'] * ($commission['first_money']/100);
+
+        // --- 一级分销计算 (r1) ---
+        // 基数：订单实际金额
+        $firstRate = $commission['first_money']; // 默认全局配置
         $firstUserId = $dealerUpUser['dealer_id'];
-        $remainMoney = $data['amount'] - $firstMoney;
-    
+        
+        // 获取一级分销商等级配置
+        // 注意：API端使用 DealerUser::detail 获取分销商详情及等级
+        $firstUser = DealerUser::detail($firstUserId);
+        if ($firstUser && isset($firstUser['rating']['setting']['first_money'])) {
+             $firstRate = $firstUser['rating']['setting']['first_money'];
+        }
+        $firstMoney = $data['amount'] * ($firstRate / 100);
+
         //给用户分配余额
         $dealeruser->grantMoney($firstUserId,$firstMoney);
+        // API端 RefereeModel 应该是 app\api\model\dealer\Referee，检查是否兼容 updateRefereeStats
+        // app\api\model\dealer\Referee 继承 common\Referee，common\Referee 有 updateRefereeStats
+        RefereeModel::updateRefereeStats($firstUserId, $user['user_id'], $firstMoney);
+        
         $dealerCapital[] = [
            'user_id' => $firstUserId,
            'flow_type' => 10,
@@ -2297,16 +2310,29 @@ class Package extends Controller
            'describe' => '分销收益',
            'create_time' => time(),
            'update_time' => time(),
-           'wxapp_id' => \request()->get('wxapp_id'),
+           'wxapp_id' => $user['wxapp_id'],
         ];
-        # 判断是否进行二级分销
+
+        // --- 二级分销计算 (r2) ---
+        // 基数：一级分销佣金
+        $secondMoney = 0;
+        $secondUserId = 0;
         if ($setting['level'] >= 2) {
             // 查询一级分销用户 是否存在上级
             $dealerSencondUser = $ReffeerModel->where(['user_id'=>$dealerUpUser['dealer_id']])->find();
             if ($dealerSencondUser){
-                $secondMoney = $remainMoney * ($commission['second_money']/100);
-                $remainMoney = $remainMoney - $secondMoney;
+                $secondRate = $commission['second_money']; // 默认全局配置
                 $secondUserId = $dealerSencondUser['dealer_id'];
+                
+                // 获取二级分销商等级配置
+                $secondUser = DealerUser::detail($secondUserId);
+                if ($secondUser && isset($secondUser['rating']['setting']['second_money'])) {
+                     $secondRate = $secondUser['rating']['setting']['second_money'];
+                }
+                
+                // 级联计算：通过一级佣金计算二级佣金
+                $secondMoney = $firstMoney * ($secondRate/100);
+                
                 $dealerCapital[] = [
                    'user_id' => $secondUserId,
                    'flow_type' => 10,
@@ -2314,18 +2340,33 @@ class Package extends Controller
                    'describe' => '分销收益',
                    'create_time' => time(),
                    'update_time' => time(),
-                   'wxapp_id' => \request()->get('wxapp_id'),
+                   'wxapp_id' => $user['wxapp_id'],
                 ];
                 $dealeruser->grantMoney($secondUserId,$secondMoney);
+                RefereeModel::updateRefereeStats($secondUserId, $user['user_id'], $secondMoney);
             }
         }
-        # 判断是否进行三级分销
-        if ($setting['level'] == 3) {
+
+        // --- 三级分销计算 (r3) ---
+        // 基数：二级分销佣金
+        $thirdMoney = 0;
+        $thirdUserId = 0;
+        if ($setting['level'] == 3 && isset($dealerSencondUser) && $dealerSencondUser) {
             // 查询二级分销用户 是否存在上级
             $dealerthirddUser = $ReffeerModel->where(['user_id'=>$dealerSencondUser['dealer_id']])->find();
-            if ($dealerSencondUser){
-                $thirdMoney = $remainMoney * ($commission['third_money']/100);
+            if ($dealerthirddUser){
+                $thirdRate = $commission['third_money']; // 默认全局配置
                 $thirdUserId = $dealerthirddUser['dealer_id'];
+                
+                // 获取三级分销商等级配置
+                $thirdUser = DealerUser::detail($thirdUserId);
+                if ($thirdUser && isset($thirdUser['rating']['setting']['third_money'])) {
+                     $thirdRate = $thirdUser['rating']['setting']['third_money'];
+                }
+                
+                // 级联计算：通过二级佣金计算三级佣金
+                $thirdMoney = $secondMoney * ($thirdRate/100);
+                
                 $dealerCapital[] = [
                    'user_id' => $thirdUserId,
                    'flow_type' => 10,
@@ -2333,9 +2374,10 @@ class Package extends Controller
                    'describe' => '分销收益',
                    'create_time' => time(),
                    'update_time' => time(),
-                   'wxapp_id' => \request()->get('wxapp_id'),
+                   'wxapp_id' => $user['wxapp_id'],
                 ];
                 $dealeruser->grantMoney($thirdUserId,$thirdMoney);
+                RefereeModel::updateRefereeStats($thirdUserId, $user['user_id'], $thirdMoney);
             }
         }
        
@@ -2345,22 +2387,22 @@ class Package extends Controller
             'order_id' => $data['order_id'],
             'order_price' => $data['amount'],
             'order_type' => 30,
-            'first_user_id' => $firstUserId??0,
-            'second_user_id' => $secondUserId??0,
-            'third_user_id' => $thirdUserId??0,
-            'first_money' => $firstMoney??0,
-            'second_money' => $secondMoney??0,
-            'third_money' => $thirdMoney??0,
+            'first_user_id' => $firstUserId,
+            'second_user_id' => $secondUserId,
+            'third_user_id' => $thirdUserId,
+            'first_money' => $firstMoney,
+            'second_money' => $secondMoney,
+            'third_money' => $thirdMoney,
             'is_invalid' => 0,
             'is_settled' => 1,
             'settle_time' => time(),
             'create_time' => time(),
             'update_time' => time(),
-            'wxapp_id' => \request()->get('wxapp_id')
+            'wxapp_id' => $user['wxapp_id']
         ];
         
-        $resCapi = (new Capital())->insertAll($dealerCapital);
-        $resDeal = (new DealerOrder())->insert($dealerOrder);
+        $resCapi = (new Capital())->saveAll($dealerCapital);
+        $resDeal = (new DealerOrder())->save($dealerOrder);
         if(!$resCapi || !$resDeal){
             return false;
         }

@@ -77,10 +77,28 @@ class Referee extends BaseModel
             ->join('user', 'user.user_id = referee.user_id')
             ->where('referee.dealer_id', '=', $user_id)
             ->where('user.is_delete', '=', 0)
+            ->group('referee.user_id') // Ensure unique users per list
             ->order(['referee.create_time' => 'desc'])
             ->paginate(15, false, [
                 'query' => \request()->request()
             ]);
+    }
+
+    /**
+     * 更新分销商统计数据
+     * @param $dealerId
+     * @param $userId
+     * @param $money
+     * @return int|true
+     * @throws \think\Exception
+     */
+    public static function updateRefereeStats($dealerId, $userId, $money)
+    {
+        $model = new static;
+        return $model->where([
+            'dealer_id' => $dealerId,
+            'user_id' => $userId,
+        ])->inc('total_money', $money)->inc('order_num')->update();
     }
 
 }

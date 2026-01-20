@@ -54,6 +54,28 @@
                                 </div>
                             </div>
                             <div class="am-form-group">
+                                <label class="am-u-sm-3 am-u-lg-2 am-form-label form-require">是否允许推荐 </label>
+                                <div class="am-u-sm-9 am-u-end">
+                                    <label class="am-radio-inline">
+                                        <input type="radio" name="package[is_recommend]" value="1" data-am-ucheck>
+                                        允许
+                                    </label>
+                                    <label class="am-radio-inline">
+                                        <input type="radio" name="package[is_recommend]" value="0" data-am-ucheck checked>
+                                        禁止
+                                    </label>
+                                    <div class="help-block">
+                                        <small>开启后，仓管员在打包时可向用户推荐此服务</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="am-form-group">
+                                <label class="am-u-sm-3 am-u-lg-2 am-form-label">推荐理由 </label>
+                                <div class="am-u-sm-9 am-u-end">
+                                    <textarea class="am-form-field" name="package[recommend_reason]" placeholder="请输入默认推荐理由，例如：检测到您的包裹含有易碎品，强烈建议加固以防运输损坏" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <div class="am-form-group">
                                 <div class="am-u-sm-9 am-u-sm-push-3 am-margin-top-lg">
                                     <button type="submit" class="j-submit am-btn am-btn-secondary">提交
                                     </button>

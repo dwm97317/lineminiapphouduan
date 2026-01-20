@@ -16,6 +16,16 @@ class Order extends BaseModel
     protected $name = 'dealer_order';
 
     /**
+     * 商品快照获取器
+     * @param $value
+     * @return mixed
+     */
+    public function getGoodsSnapshotAttr($value)
+    {
+        return json_decode($value, true);
+    }
+
+    /**
      * 订单模型初始化
      */
     public static function init()
@@ -125,11 +135,20 @@ class Order extends BaseModel
         // 重新计算分销佣金
         $capital = $model->getCapitalByOrder($order);
         // 发放一级分销商佣金
-        $model['first_user_id'] > 0 && User::grantMoney($model['first_user_id'], $capital['first_money']);
+        if ($model['first_user_id'] > 0) {
+            User::grantMoney($model['first_user_id'], $capital['first_money']);
+            Referee::updateRefereeStats($model['first_user_id'], $order['user_id'], $capital['first_money']);
+        }
         // 发放二级分销商佣金
-        $model['second_user_id'] > 0 && User::grantMoney($model['second_user_id'], $capital['second_money']);
+        if ($model['second_user_id'] > 0) {
+            User::grantMoney($model['second_user_id'], $capital['second_money']);
+            Referee::updateRefereeStats($model['second_user_id'], $order['user_id'], $capital['second_money']);
+        }
         // 发放三级分销商佣金
-        $model['third_user_id'] > 0 && User::grantMoney($model['third_user_id'], $capital['third_money']);
+        if ($model['third_user_id'] > 0) {
+            User::grantMoney($model['third_user_id'], $capital['third_money']);
+            Referee::updateRefereeStats($model['third_user_id'], $order['user_id'], $capital['third_money']);
+        }
         // 更新分销订单记录
         return $model->save([
             'order_price' => $capital['orderPrice'],

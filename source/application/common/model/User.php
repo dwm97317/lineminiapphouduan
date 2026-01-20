@@ -172,13 +172,23 @@ class User extends BaseModel
     }
 
     /**
+     * 关联品牌Logo
+     * @return \think\model\relation\BelongsTo
+     */
+    public function brandLogo()
+    {
+        $module = self::getCalledModule() ?: 'common';
+        return $this->belongsTo("app\\{$module}\\model\\UploadFile", 'brand_logo_id', 'file_id');
+    }
+
+    /**
      * 获取用户信息
      * @param $where
      * @param $with
      * @return null|static
      * @throws \think\exception\DbException
      */
-    public static function detail($where, $with = ['address', 'addressDefault','grade'])
+    public static function detail($where, $with = ['address', 'addressDefault','grade','brandLogo'])
     {
         $filter = ['is_delete' => 0];
        

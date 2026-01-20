@@ -445,6 +445,13 @@ return [
                 ]
             ],
             [
+                'name' => '营销设置',
+                'index' => 'market.marketing/index',
+                'uris' => [
+                    'market.marketing/index',
+                ]
+            ],
+            [
                 'name' => '消息推送',
                 'submenu' => [
                     [

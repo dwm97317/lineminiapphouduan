@@ -14,15 +14,17 @@
 
 ### 1.2 后端视图改造计划
 
-#### A. 改造增值服务管理 (Configuration)
-现有文件: `source/application/store/view/setting/addservice/add.php` 和 `edit.php`
-此视图用于管理具体的服务项目（如木架、防水袋）。
-*   **新增字段**:
-    *   `是否允许推荐` (Switch): 开启后，仓管员端才可见此服务。
-    *   `默认推荐理由` (Textarea): 预设的营销话术，如 "检测到您的包裹含有易碎品，强烈建议加固以防运输损坏"。
-*   **目的**: 实现服务维度的精细化控制，避免所有服务都暴露给仓管员。
+### 1.2 Backend View Modifications
 
-#### B. 新增营销设置模块 (Settings)
+#### A. Modify Package Services (Configuration)
+Existing files: `source/application/store/view/setting/package/add.php` and `edit.php`
+This view manages generic packing services (e.g., Wooden Crate, Waterproof Bag).
+- **Add Fields**:
+    - `Allow Recommend` (Switch): Only visible to warehouse staff when enabled.
+    - `Default Recommend Reason` (Textarea): Pre-set marketing text.
+- **Goal**: Fine-grained control over service recommendation.
+
+#### B. New Marketing Settings Module (Settings)
 现有文件 `source/application/store/view/setting/store.php` 过于拥挤，不适合添加新功能。
 *   **新建视图**: `source/application/store/view/market/upsell/setting.php` (或集成在 `marketing/index.php`)
 *   **配置项**:

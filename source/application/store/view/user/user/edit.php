@@ -8,80 +8,139 @@
                             <div class="widget-head am-cf">
                                 <div class="widget-title am-fl">编辑用户</div>
                             </div>
-                            <div class="am-form-group">
-                                <label class="am-u-sm-3 am-u-lg-2 am-form-label">用户ID </label>
-                                <div class="am-u-sm-9 am-u-end">
-                                    <span class="am-form-static"><?= $detail['user_id'] ?></span>
-                                </div>
-                            </div>
-                            <div class="am-form-group">
-                                <label class="am-u-sm-3 am-u-lg-2 am-form-label">用户昵称 </label>
-                                <div class="am-u-sm-9 am-u-end">
-                                    <input type="text" class="tpl-form-input" name="user[nickName]" 
-                                           value="<?= $detail['nickName'] ?>">
-                                </div>
-                            </div>
-                            <?php if($set['is_show']!=0) :?>
-                            <div class="am-form-group">
-                                <label class="am-u-sm-3 am-u-lg-2 am-form-label">用户编号 </label>
-                                <div class="am-u-sm-9 am-u-end">
-                                    <input type="text" class="tpl-form-input" name="user[user_code]"
-                                           value="<?= $detail['user_code'] ?>">
-                                </div>
-                            </div>
-                            <?php endif ;?>
-                            <div class="am-form-group">
-                                <label class="am-u-sm-3 am-u-lg-2 am-form-label form-require">用户性别 </label>
-                                <div class="am-u-sm-9 am-u-end">
-                                    <label class="am-radio-inline">
-                                        <input type="radio" name="user[gender]" value="1" data-am-ucheck <?= $detail['gender']['value']==1?'checked':'' ?>>
-                                        男
-                                    </label>
-                                    <label class="am-radio-inline">
-                                        <input type="radio" name="user[gender]" value="2" data-am-ucheck <?= $detail['gender']['value']==2?'checked':'' ?>>
-                                        女
-                                    </label>
-                                    <label class="am-radio-inline">
-                                        <input type="radio" name="user[gender]" value="0" data-am-ucheck <?= $detail['gender']['value']==0?'checked':'' ?>>
-                                        未知
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="am-form-group">
-                                <label class="am-u-sm-3 am-u-lg-2 am-form-label">用户手机号 </label>
-                                <div class="am-u-sm-9 am-u-end">
-                                    <input type="text" class="tpl-form-input" name="user[mobile]"
-                                           value="<?= $detail['mobile'] ?>">
-                                </div>
-                            </div>
-                            <div class="am-form-group">
-                                <label class="am-u-sm-3 am-u-lg-2 am-form-label">用户邮箱 </label>
-                                <div class="am-u-sm-9 am-u-end">
-                                    <input type="text" class="tpl-form-input" autocomplete="off" name="user[email]"
-                                           value="<?= $detail['email'] ?>">
-                                </div>
-                            </div>
-                            <div class="am-form-group">
-                                <label class="am-u-sm-5 am-u-lg-2 am-form-label">所属客服 </label>
-                                <div class="am-u-sm-9  am-u-end">
-                                    <select name="user[service_id]"
-                                            data-am-selected="{searchBox: 1, btnSize: 'sm', placeholder:'请选择', maxHeight: 400}" >
-                                        <option value=""></option>
-                                        <?php if (isset($service) && !$service->isEmpty()):
-                                            foreach ($service as $item): ?>
-                                                <?php if(isset($detail['service_id'])): ?>
-                                                   <option value="<?= $item['clerk_id'] ?>" <?= $detail['service_id'] == $item['clerk_id'] ? 'selected' : '' ?> ><?= $item['real_name'].'-'.$item['mobile'] ?></option>
-                                                <?php else: ?>  
-                                                   <option value="<?= $item['clerk_id'] ?>"><?= $item['real_name'].'-'.$item['mobile'] ?></option>
-                                                <?php endif; ?>
-                                                
-                                            <?php endforeach; endif; ?>
-                                    </select>
-                                    <div class="help-block">
-                                        <small>用户绑定归属客服后，客服人员可以进行客勤跟踪管理</small>
+                            
+                            <div class="am-tabs" data-am-tabs>
+                                <ul class="am-tabs-nav am-nav am-nav-tabs">
+                                    <li class="am-active"><a href="#tab1">基础信息</a></li>
+                                    <li><a href="#tab2">白牌设置</a></li>
+                                </ul>
+
+                                <div class="am-tabs-bd">
+                                    <div class="am-tab-panel am-fade am-in am-active" id="tab1">
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-3 am-u-lg-2 am-form-label">用户ID </label>
+                                            <div class="am-u-sm-9 am-u-end">
+                                                <span class="am-form-static"><?= $detail['user_id'] ?></span>
+                                            </div>
+                                        </div>
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-3 am-u-lg-2 am-form-label">用户昵称 </label>
+                                            <div class="am-u-sm-9 am-u-end">
+                                                <input type="text" class="tpl-form-input" name="user[nickName]" 
+                                                       value="<?= $detail['nickName'] ?>">
+                                            </div>
+                                        </div>
+                                        <?php if($set['is_show']!=0) :?>
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-3 am-u-lg-2 am-form-label">用户编号 </label>
+                                            <div class="am-u-sm-9 am-u-end">
+                                                <input type="text" class="tpl-form-input" name="user[user_code]"
+                                                       value="<?= $detail['user_code'] ?>">
+                                            </div>
+                                        </div>
+                                        <?php endif ;?>
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-3 am-u-lg-2 am-form-label form-require">用户性别 </label>
+                                            <div class="am-u-sm-9 am-u-end">
+                                                <label class="am-radio-inline">
+                                                    <input type="radio" name="user[gender]" value="1" data-am-ucheck <?= $detail['gender']['value']==1?'checked':'' ?>>
+                                                    男
+                                                </label>
+                                                <label class="am-radio-inline">
+                                                    <input type="radio" name="user[gender]" value="2" data-am-ucheck <?= $detail['gender']['value']==2?'checked':'' ?>>
+                                                    女
+                                                </label>
+                                                <label class="am-radio-inline">
+                                                    <input type="radio" name="user[gender]" value="0" data-am-ucheck <?= $detail['gender']['value']==0?'checked':'' ?>>
+                                                    未知
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-3 am-u-lg-2 am-form-label">用户手机号 </label>
+                                            <div class="am-u-sm-9 am-u-end">
+                                                <input type="text" class="tpl-form-input" name="user[mobile]"
+                                                       value="<?= $detail['mobile'] ?>">
+                                            </div>
+                                        </div>
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-3 am-u-lg-2 am-form-label">用户邮箱 </label>
+                                            <div class="am-u-sm-9 am-u-end">
+                                                <input type="text" class="tpl-form-input" autocomplete="off" name="user[email]"
+                                                       value="<?= $detail['email'] ?>">
+                                            </div>
+                                        </div>
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-5 am-u-lg-2 am-form-label">所属客服 </label>
+                                            <div class="am-u-sm-9  am-u-end">
+                                                <select name="user[service_id]"
+                                                        data-am-selected="{searchBox: 1, btnSize: 'sm', placeholder:'请选择', maxHeight: 400}" >
+                                                    <option value=""></option>
+                                                    <?php if (isset($service) && !$service->isEmpty()):
+                                                        foreach ($service as $item): ?>
+                                                            <?php if(isset($detail['service_id'])): ?>
+                                                               <option value="<?= $item['clerk_id'] ?>" <?= $detail['service_id'] == $item['clerk_id'] ? 'selected' : '' ?> ><?= $item['real_name'].'-'.$item['mobile'] ?></option>
+                                                            <?php else: ?>  
+                                                               <option value="<?= $item['clerk_id'] ?>"><?= $item['real_name'].'-'.$item['mobile'] ?></option>
+                                                            <?php endif; ?>
+                                                            
+                                                        <?php endforeach; endif; ?>
+                                                </select>
+                                                <div class="help-block">
+                                                    <small>用户绑定归属客服后，客服人员可以进行客勤跟踪管理</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Brand Settings Tab -->
+                                    <div class="am-tab-panel am-fade" id="tab2">
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-3 am-u-lg-2 am-form-label">品牌名称 </label>
+                                            <div class="am-u-sm-9 am-u-end">
+                                                <input type="text" class="tpl-form-input" name="user[brand_name]"
+                                                       value="<?= isset($detail['brand_name']) ? $detail['brand_name'] : '' ?>" placeholder="请输入代理商品牌名称">
+                                            </div>
+                                        </div>
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-3 am-u-lg-2 am-form-label">品牌 Logo </label>
+                                            <div class="am-u-sm-9 am-u-end">
+                                                <div class="am-form-file">
+                                                    <div class="am-form-file">
+                                                        <button type="button"
+                                                                class="upload-file am-btn am-btn-secondary am-radius">
+                                                            <i class="am-icon-cloud-upload"></i> 选择图片
+                                                        </button>
+                                                        <div class="uploader-list am-cf">
+                                                            <?php if (isset($detail['brandLogo'])): ?>
+                                                                <div class="file-item">
+                                                                    <a href="<?= $detail['brandLogo']['file_path'] ?>" title="点击查看大图" target="_blank">
+                                                                        <img src="<?= $detail['brandLogo']['file_path'] ?>">
+                                                                    </a>
+                                                                    <input type="hidden" name="user[brand_logo_id]"
+                                                                           value="<?= $detail['brand_logo_id'] ?>">
+                                                                    <i class="iconfont icon-shanchu file-item-delete"></i>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                    <div class="help-block">
+                                                        <small>建议尺寸：200x200像素</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-3 am-u-lg-2 am-form-label">主题色 </label>
+                                            <div class="am-u-sm-9 am-u-end">
+                                                <input type="color" class="tpl-form-input" name="user[theme_color]"
+                                                       value="<?= isset($detail['theme_color']) && !empty($detail['theme_color']) ? $detail['theme_color'] : '#000000' ?>" style="height: 40px; width: 100px;">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+
                             <div class="am-form-group">
                                 <div class="am-u-sm-9 am-u-sm-push-3 am-margin-top-lg">
                                     <button type="submit" class="j-submit am-btn am-btn-secondary">提交
@@ -95,8 +154,22 @@
         </div>
     </div>
 </div>
+</div>
+
+<!-- 图片文件列表模板 -->
+{{include file="layouts/_template/tpl_file_item" /}}
+
+<!-- 文件库弹窗 -->
+{{include file="layouts/_template/file_library" /}}
+
 <script>
     $(function () {
+        
+        // 选择图片
+        $('.upload-file').selectImages({
+            name: 'user[brand_logo_id]'
+        });
+
         /**
          * 表单验证提交
          * @type {*}
