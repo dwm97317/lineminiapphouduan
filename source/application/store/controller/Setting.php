@@ -240,6 +240,16 @@ class Setting extends Controller
     }
 
     /**
+     * 集运拼团配置
+     * @return mixed
+     * @throws \think\exception\DbException
+     */
+    public function sharingLogistics()
+    {
+        return $this->updateEvent('sharing_logistics');
+    }
+
+    /**
      * 更新系统设置事件
      * @param $key
      * @param $vars
