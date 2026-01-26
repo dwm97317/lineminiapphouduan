@@ -569,6 +569,13 @@ class Setting extends BaseModel
                             'secret_key' => '',
                             'domain' => 'http://'
                         ],
+                        'cloudflare' => [
+                            'bucket' => '',
+                            'access_key' => '',
+                            'secret_key' => '',
+                            'account_id' => '',
+                            'domain' => 'http://'
+                        ],
                     ]
                 ],
             ],
@@ -1272,6 +1279,27 @@ class Setting extends BaseModel
                     'channel_id' => '',
                     'channel_secret' => '',
                     'is_test' => '1',
+                ]
+            ],
+            // 电子面单配置
+            'waybill' => [
+                'key' => 'waybill',
+                'describe' => '电子面单配置',
+                'values' => [
+                    'zhongtong' => [
+                        'api_url' => '',
+                        'api_key' => '',
+                        'api_secret' => '',
+                        'company_code' => 'ZTO',
+                    ],
+                    'shunfeng' => [
+                        'api_url' => '',
+                        'api_key' => '', // PartnerID
+                        'api_secret' => '', // Checkword
+                        'custid' => '', // 月结卡号
+                        'pay_method' => 1, // 默认寄方付
+                        'company_code' => 'SF',
+                    ],
                 ]
             ],
             // 营销设置
