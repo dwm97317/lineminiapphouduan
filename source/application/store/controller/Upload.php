@@ -85,8 +85,16 @@ class Upload extends Controller
         // 存储引擎
         $storage = $this->config['default'];
         // 存储域名
-        $fileUrl = isset($this->config['engine'][$storage]['domain'])
-            ? $this->config['engine'][$storage]['domain'] : '';
+        $fileUrl = isset($this->config['engine'][$storage]['domain']) ? $this->config['engine'][$storage]['domain'] : '';
+        if ($storage === 'cloudflare') {
+            $cf = $this->config['engine']['cloudflare'];
+            if (isset($cf['accounts']) && is_array($cf['accounts']) && !empty($cf['accounts'])) {
+                $activeId = isset($cf['active_account_id']) ? $cf['active_account_id'] : array_keys($cf['accounts'])[0];
+                if (isset($cf['accounts'][$activeId]['domain']) && $cf['accounts'][$activeId]['domain']) {
+                    $fileUrl = $cf['accounts'][$activeId]['domain'];
+                }
+            }
+        }
         // 添加文件库记录
         $model = new UploadFile;
         $model->add([

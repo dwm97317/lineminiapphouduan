@@ -574,7 +574,10 @@ class Setting extends BaseModel
                             'access_key' => '',
                             'secret_key' => '',
                             'account_id' => '',
-                            'domain' => 'http://'
+                            'domain' => 'http://',
+                            'accounts' => [],
+                            'active_account_id' => '',
+                            'auto_switch' => 0
                         ],
                     ]
                 ],
