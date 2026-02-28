@@ -98,7 +98,10 @@ class BaseModel extends Model
      */
     protected function base($query)
     {
-        if (self::$wxapp_id > 0) {
+        // List of tables that do not have wxapp_id
+        $excludeTables = ['yoshop_region', 'yoshop_country'];
+        
+        if (self::$wxapp_id > 0 && !in_array($query->getTable(), $excludeTables)) {
             $query->where($query->getTable() . '.wxapp_id', self::$wxapp_id);
         }
         

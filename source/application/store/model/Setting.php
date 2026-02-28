@@ -23,6 +23,19 @@ class Setting extends SettingModel
     public function edit($key, $values)
     {
         // dump($values);die;
+        // 如果是 waybill 开头的配置，直接保存，不需要验证 validValues
+        if (strpos($key, 'waybill') === 0) {
+            $model = self::detail($key) ?: $this;
+            // 删除系统设置缓存
+            Cache::rm('setting_' . self::$wxapp_id);
+            return $model->save([
+                'key' => $key,
+                'describe' => $key === 'waybill' ? '电子面单配置' : '面单参数配置',
+                'values' => $values,
+                'wxapp_id' => self::$wxapp_id,
+            ]) !== false;
+        }
+
         $model = self::detail($key) ?: $this;
         // 数据验证
         if (!$this->validValues($key, $values)) {

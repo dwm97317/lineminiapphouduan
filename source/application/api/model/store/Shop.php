@@ -158,6 +158,17 @@ class Shop extends ShopModel
     }
      
     /**
+     * 获取名称
+     * @param $value
+     * @param $data
+     * @return mixed
+     */
+    public function getNameAttr($value, $data)
+    {
+        return $value ?: ($data['shop_name'] ?? '');
+    }
+
+    /**
      * 根据id 获取字段
      */
     public function getValueById($id,$field){

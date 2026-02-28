@@ -740,6 +740,7 @@ class Inpack extends InpackModel
             
             if ($address) {
                 // 直接设置到 data 属性中，这样可以访问但不会保存到数据库
+                // 安全地获取 country，如果为空则默认为 ''，避免 InvalidArgumentException
                 $detail->data['country'] = $address['country'] ?? '';
                 $detail->data['province'] = $address['province'] ?? '';
                 $detail->data['city'] = $address['city'] ?? '';
@@ -747,7 +748,25 @@ class Inpack extends InpackModel
                 $detail->data['detail'] = $address['detail'] ?? '';
                 $detail->data['name'] = $address['name'] ?? '';
                 $detail->data['phone'] = $address['phone'] ?? '';
+            } else {
+                // 如果地址不存在，也要初始化这些字段为 ''，防止后续调用报错
+                $detail->data['country'] = '';
+                $detail->data['province'] = '';
+                $detail->data['city'] = '';
+                $detail->data['region'] = '';
+                $detail->data['detail'] = '';
+                $detail->data['name'] = '';
+                $detail->data['phone'] = '';
             }
+        } else {
+             // 如果没有 address_id，也要初始化
+            $detail->data['country'] = '';
+            $detail->data['province'] = '';
+            $detail->data['city'] = '';
+            $detail->data['region'] = '';
+            $detail->data['detail'] = '';
+            $detail->data['name'] = '';
+            $detail->data['phone'] = '';
         }
         
         return $detail;

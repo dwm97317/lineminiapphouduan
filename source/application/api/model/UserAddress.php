@@ -75,6 +75,14 @@ class UserAddress extends UserAddressModel
         return $this->transaction(function () use ($user, $data) {
             // 整理地区信息
             $region = explode(',', $data['region']);
+            
+            // 默认国家处理：如果不填就是泰国
+            $country = (isset($region[0]) && !empty($region[0])) ? $region[0] : '泰国';
+            $country_id = (isset($data['country_id']) && !empty($data['country_id'])) ? $data['country_id'] : '';
+            
+            // 如果是默认泰国且没有ID，尝试查找ID (可选优化，非必须如果系统主要用名称)
+            // 这里为了保持原有逻辑简洁，仅确保名称默认
+            
             // 添加收货地址
             $this->allowField(true)->save([
                 'name' => $data['name'],
@@ -82,8 +90,8 @@ class UserAddress extends UserAddressModel
                 'identitycard'=>isset($data['identitycard'])?$data['identitycard']:'',
                 'tel_code'=>isset($data['telcode'])?$data['telcode']:'',
                 'clearancecode'=>isset($data['clearancecode'])?$data['clearancecode']:'',
-                'country' => isset($region[0])?$region[0]:'',
-                'country_id' => isset($data['country_id'])?$data['country_id']:'',
+                'country' => $country,
+                'country_id' => $country_id,
                 'province' => isset($region[1])?$region[1]:'',
                 'city' => isset($region[2])?$region[2]:'',
                 'region' => isset($region[3])?$region[3]:0,
@@ -114,14 +122,19 @@ class UserAddress extends UserAddressModel
     {
         // 整理地区信息
         $region = explode(',', $data['region']);
+        
+        // 默认国家处理：如果不填就是泰国
+        $country = (isset($region[0]) && !empty($region[0])) ? $region[0] : '泰国';
+        $country_id = (isset($data['country_id']) && !empty($data['country_id'])) ? $data['country_id'] : '';
+
         // 更新收货地址
         return $this->allowField(true)->save([
                 'name' => $data['name'],
                 'phone' => isset($data['phone'])?$data['phone']:'',
                 'tel_code'=>isset($data['telcode'])?$data['telcode']:'',
                 'identitycard'=>isset($data['identitycard'])?$data['identitycard']:'',
-                'country' => isset($region[0])?$region[0]:'',
-                'country_id' => isset($data['country_id'])?$data['country_id']:'',
+                'country' => $country,
+                'country_id' => $country_id,
                 'clearancecode'=>isset($data['clearancecode'])?$data['clearancecode']:'',
                 'province' => isset($region[1])?$region[1]:'',
                 'city' => isset($region[2])?$region[2]:'',
