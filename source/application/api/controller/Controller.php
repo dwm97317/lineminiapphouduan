@@ -44,7 +44,7 @@ class Controller extends \think\Controller
      * @return mixed
      * @throws BaseException
      */
-    private function getWxappId()
+    protected function getWxappId()
     {
         if (!$wxapp_id = $this->request->param('wxapp_id')) {
             throw new BaseException(['msg' => '缺少必要的参数：wxapp_id']);

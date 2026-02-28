@@ -649,7 +649,7 @@ class Package extends Controller
      // 未打包列表
      public function unpack(){
         $this->user = $this->getUser(); 
-        $field = 'id,country_id,order_sn,express_num,weight,storage_id,created_time,remark,source';
+        $field = 'id,country_id,order_sn,express_num,weight,volume,storage_id,created_time,remark,source';
        
         $where[] = ['is_delete','=',0];
         $where[] = ['is_take','=',2];

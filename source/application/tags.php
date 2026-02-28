@@ -15,8 +15,7 @@ return [
     'app_init' => [],
     // 应用开始
     'app_begin' => [
-        'app\\common\\behavior\\App',
-        'app\\task\\behavior\\R2Monitor'
+        'app\\common\\behavior\\App'
     ],
     // 模块初始化
     'module_init' => [],

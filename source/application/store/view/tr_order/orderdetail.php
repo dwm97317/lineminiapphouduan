@@ -128,6 +128,10 @@
                     <div class="widget-head am-cf">
                         <div class="widget-title am-fl">物流记录</div>
                         <div class="am-fr tpl-table-black-operation">
+                            <a href="<?= url('store/trOrder/waybill', ['id' =>$detail['id']]) ?>" class="am-text-success">
+                                <i class="am-icon-file-text-o"></i> 生成电子面单(SF)
+                            </a>
+                            &nbsp;&nbsp;
                             <a href="<?= url('store/trOrder/logistics', ['id' =>$detail['id']]) ?>">
                                 <i class="am-icon-pencil"></i> 物流更新
                             </a>
