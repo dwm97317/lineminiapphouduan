@@ -14,8 +14,24 @@ class Setting extends Controller
     public function basic(){
         if (!$this->request->isAjax()) {
             $detail = SettingModel::getItem('sharp');
+            
+            // 添加默认紧迫感开关
+            if (!isset($detail['show_view_count'])) {
+                $detail['show_view_count'] = 1;
+            }
+            if (!isset($detail['show_recent_joins'])) {
+                $detail['show_recent_joins'] = 1;
+            }
+            if (!isset($detail['show_urgency_timer'])) {
+                $detail['show_urgency_timer'] = 1;
+            }
+            
+            // 获取线路价格配置统计
+            $priceStats = \app\store\model\sharing\LinePriceTier::getConfigStats();
+            
             return $this->fetch('basic', [
-                    'data' => $detail
+                'data' => $detail,
+                'priceStats' => $priceStats
             ]);
         }
         $model = new SettingModel;

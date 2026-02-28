@@ -65,6 +65,63 @@
                                     </label>
                                 </div>
                             </div>
+                            <div class="am-form-group">
+                                <label class="am-u-sm-3 am-u-lg-2 am-form-label form-require"> 拼团支付模式 </label>
+                                <div class="am-u-sm-9 am-u-end">
+                                    <label class="am-radio-inline">
+                                        <input type="radio" name="share[group_pay_mode]" value="10" data-am-ucheck
+                                                <?= $data['group_pay_mode'] == '10' ? 'checked' : '' ?>>
+                                        先拼后付 (推荐)
+                                    </label>
+                                    <label class="am-radio-inline">
+                                        <input type="radio" name="share[group_pay_mode]" value="20" data-am-ucheck  <?= $data['group_pay_mode'] == '20' ? 'checked' : '' ?>>
+                                        立减预付
+                                    </label>
+                                    <div class="help-block">
+                                        <small>先拼后付：截单后统一计算；立减预付：参团时立即支付优惠价格</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="am-form-group">
+                                <label class="am-u-sm-3 am-u-lg-2 am-form-label"> 紧迫感显示设置 </label>
+                                <div class="am-u-sm-9 am-u-end">
+                                    <label class="am-checkbox-inline">
+                                        <input type="checkbox" name="share[show_view_count]" value="1" data-am-ucheck
+                                                <?= isset($data['show_view_count']) && $data['show_view_count'] == '1' ? 'checked' : '' ?>>
+                                        显示浏览人数
+                                    </label>
+                                    <label class="am-checkbox-inline">
+                                        <input type="checkbox" name="share[show_recent_joins]" value="1" data-am-ucheck
+                                                <?= isset($data['show_recent_joins']) && $data['show_recent_joins'] == '1' ? 'checked' : '' ?>>
+                                        显示最近加入提示
+                                    </label>
+                                    <label class="am-checkbox-inline">
+                                        <input type="checkbox" name="share[show_urgency_timer]" value="1" data-am-ucheck
+                                                <?= isset($data['show_urgency_timer']) && $data['show_urgency_timer'] == '1' ? 'checked' : '' ?>>
+                                        显示紧迫倒计时
+                                    </label>
+                                    <div class="help-block">
+                                        <small>开启后将在拼团广场显示相关数据，增强用户参与紧迫感</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="am-form-group">
+                                <label class="am-u-sm-3 am-u-lg-2 am-form-label"> 线路价格配置 </label>
+                                <div class="am-u-sm-9 am-u-end">
+                                    <div class="am-alert am-alert-secondary">
+                                        <p>已配置线路：<strong><?= $priceStats['configured'] ?></strong> 条</p>
+                                        <p>未配置线路：<strong><?= $priceStats['unconfigured'] ?></strong> 条</p>
+                                    </div>
+                                    <a href="<?= url('apps.sharing.line_price_tier/index') ?>" class="am-btn am-btn-secondary">
+                                        <i class="am-icon-cog"></i> 详细配置
+                                    </a>
+                                    <div class="help-block">
+                                        <small>为不同物流线路配置价格阶梯，实现重量越大价格越优惠</small>
+                                    </div>
+                                </div>
+                            </div>
          
                             <div class="am-form-group">
                                 <label class="am-u-sm-3 am-u-lg-2 am-form-label"> 拼团规则 </label>

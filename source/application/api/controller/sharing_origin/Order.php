@@ -4,7 +4,7 @@ namespace app\api\controller\sharing;
 use app\api\controller\Controller;
 use app\api\model\Setting as SettingModel;
 use app\api\model\UserAddress;
-use app\api\model\sharing\Order as OrderModel;
+use app\api\model\sharing\SharingOrder as OrderModel;
 use app\api\service\sharing\order\Checkout as CheckoutModel;
 use app\api\validate\sharing\order\Checkout as CheckoutValidate;
 
@@ -111,7 +111,7 @@ class Order extends Controller
     public function lists($dataType)
     {
         $model = new OrderModel;
-        $list = $model->getList($this->user['user_id'], $dataType);
+        $list = $model->getList(['member_id' => $this->user['user_id'], 'status' => $dataType]);
         return $this->renderSuccess(compact('list'));
     }
 

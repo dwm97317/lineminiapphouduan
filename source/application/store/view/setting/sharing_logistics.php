@@ -22,6 +22,22 @@
                                 </div>
                             </div>
                             <div class="am-form-group">
+                                <label class="am-u-sm-3 am-form-label form-require">拼团支付模式 </label>
+                                <div class="am-u-sm-9">
+                                    <label class="am-radio-inline">
+                                        <input type="radio" name="sharing_logistics[group_pay_mode]" value="10"
+                                            <?= !isset($setting['group_pay_mode']) || $setting['group_pay_mode'] == 10 ? 'checked' : '' ?> data-am-ucheck> 先拼后付(推荐)
+                                    </label>
+                                    <label class="am-radio-inline">
+                                        <input type="radio" name="sharing_logistics[group_pay_mode]" value="20"
+                                            <?= isset($setting['group_pay_mode']) && $setting['group_pay_mode'] == 20 ? 'checked' : '' ?> data-am-ucheck> 立减预付
+                                    </label>
+                                    <div class="help-block">
+                                        <small>先拼后付：截单后统一计算价格，运单锁定；立减预付：加入时按目标价立即修改运单价格并支付</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="am-form-group">
                                 <label class="am-u-sm-3 am-form-label">拼团说明 </label>
                                 <div class="am-u-sm-9">
                                     <textarea class="am-form-field" name="sharing_logistics[description]"

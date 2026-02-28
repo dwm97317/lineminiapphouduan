@@ -175,8 +175,12 @@
                                         <?php endif ;?>
                                         <?php if ($set['is_city']==1): ?> 
                                         市：<?= $item['address']['city'] ?><span style="color:#ff6666;cursor:pointer" text="<?= $item['address']['city'];?>" onclick="copyUrl2(this)">[复制]</span></br>
+                                         <?php if (isset($item['address']['region']) && is_array($item['address']['region'])): ?>
+                                             区：<?= $item['address']['region']['region'] ?? '' ?></br>
+                                         <?php else: ?>
+                                             区：<?= isset($item['address']['region']) && $item['address']['region']!='0' ? $item['address']['region'] : '未填' ?></br>
+                                         <?php endif; ?>
                                         <?php endif ;?>
-                                        <!--区：<?= $item['address']['region']=='0'?'未填':$item['address']['region']?></br>-->
                                         <?php if ($set['is_street']==1): ?>
                                         街道：<?= $item['address']['street']=='0'?'未填':$item['address']['street']?><span style="color:#ff6666;cursor:pointer" text="<?= $item['address']['street'];?>" onclick="copyUrl2(this)">[复制]</span>
                                         <?php endif ;?>

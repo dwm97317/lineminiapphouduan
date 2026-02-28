@@ -25,13 +25,71 @@ class Order extends Controller
        $SharingOrder = (new SharingOrder());
        $shopList = ShopModel::getAllList();
        $SharingOrderItem = new SharingOrderItem();
+       $Inpack = new Inpack();
        $param = $this->request->param();
        $lists = $SharingOrder->getList($param);
+       
+       // 获取价格阶梯配置
+       $sharpSetting = \app\common\model\Setting::detail('store')['values']['sharp'] ?? [];
+       $defaultPriceTiers = $sharpSetting['price_tiers'] ?? [
+           ['weight' => 50, 'price' => 100],
+           ['weight' => 100, 'price' => 90],
+           ['weight' => 200, 'price' => 80],
+           ['weight' => 500, 'price' => 70]
+       ];
+       
        foreach ($lists as $key => $item){
+          // 成员数量
           $lists[$key]['count'] = $SharingOrderItem->where('order_id',$item['order_id'])->where('status','<',9)->count();
+          $lists[$key]['actual_people'] = $lists[$key]['count'];
+          
+          // 计算当前总重量
+          $members = $SharingOrderItem->where('order_id',$item['order_id'])->where('status','<',9)->select();
+          $currentWeight = 0;
+          foreach ($members as $member) {
+              $package = $Inpack->where('id', $member['package_id'])->find();
+              if ($package) {
+                  $currentWeight += floatval($package['weight'] ?? 0);
+              }
+          }
+          $lists[$key]['current_weight'] = $currentWeight;
+          
+          // 进度百分比
+          $predictWeight = floatval($item['predict_weight'] ?? 100);
+          $lists[$key]['progress_percent'] = $predictWeight > 0 ? round(($currentWeight / $predictWeight) * 100, 1) : 0;
+          
+          // 价格阶梯
+          $lists[$key]['price_tiers'] = $defaultPriceTiers;
+          
+          // 计算当前价格和原价
+          $originalPrice = $defaultPriceTiers[0]['price'];
+          $currentPrice = $originalPrice;
+          foreach ($defaultPriceTiers as $tier) {
+              if ($currentWeight >= $tier['weight']) {
+                  $currentPrice = $tier['price'];
+              }
+          }
+          $lists[$key]['original_price'] = $originalPrice;
+          $lists[$key]['current_price'] = $currentPrice;
+          
+          // 时间相关
+          $endTime = intval($item['end_time'] ?? 0);
+          $currentTime = time();
+          $lists[$key]['time_remaining'] = max(0, $endTime - $currentTime);
+          $lists[$key]['is_ending_soon'] = ($endTime - $currentTime) < 86400 && ($endTime - $currentTime) > 0;
+          
+          // 紧迫感数据 (拼多多风格)
+          $lists[$key]['view_count'] = rand(50, 300); // 模拟浏览数
+          $lists[$key]['recent_joins'] = rand(1, 10); // 最近加入人数
+          $lists[$key]['minutes_ago'] = rand(1, 30); // X分钟前
+          $lists[$key]['remaining_weight'] = max(0, $predictWeight - $currentWeight);
+          
+          // 是否即将满员
+          $maxPeople = intval($item['max_people'] ?? 50);
+          $lists[$key]['is_nearly_full'] = $lists[$key]['actual_people'] >= ($maxPeople * 0.8);
        }
        $list = $lists;
-        // dump($list);die;
+       
        $set = Setting::detail('store')['values']['address_setting'];
        $setcode = Setting::detail('store')['values']['usercode_mode'];
        return $this->fetch('index',compact('list','shopList','set','setcode'));

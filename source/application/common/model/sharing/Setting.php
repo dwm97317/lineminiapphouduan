@@ -86,6 +86,7 @@ class Setting extends BaseModel{
                     'is_own_join' => 1, // 是否允许自己参团
                     'is_verify' => 0, // 拼团活动 是否需要后台审核
                     'is_shenhe' => 1, //用户申请加入拼团是否需要审核
+                    'group_pay_mode' => 10, // 拼团支付模式：10先拼后付 20立减预付
                     'describe' =>"当满足拼团的包裹上限，拼团会自动进行锁团，无法再加入团员，但可找团长进行协商；",
                     'error' => [
                         'exceed_num' => '已超拼团人数上限',
