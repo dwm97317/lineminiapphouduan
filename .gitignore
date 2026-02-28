@@ -13,3 +13,4 @@ AGENTS.md
 .setting/
 .trae/
 *.code-workspace
+tests/
