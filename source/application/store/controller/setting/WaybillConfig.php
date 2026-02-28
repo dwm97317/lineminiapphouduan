@@ -5,6 +5,7 @@ namespace app\store\controller\setting;
 use app\store\controller\Controller;
 use app\common\service\WaybillConfigService;
 use app\common\model\Setting as SettingModel;
+use app\store\model\Setting as StoreSettingModel;
 
 /**
  * 面单配置控制器
@@ -40,26 +41,11 @@ class WaybillConfig extends Controller
      */
     public function getApiConfig()
     {
-        $config = SettingModel::getItem('express_api_config');
+        $config = SettingModel::getItem('waybill');
         
-        if (empty($config)) {
-            // 返回默认结构
-            $config = [
-                'zhongtong' => [
-                    'api_url' => '',
-                    'api_key' => '',
-                    'api_secret' => '',
-                    'company_code' => 'ZTO'
-                ],
-                'shunfeng' => [
-                    'api_url' => '',
-                    'api_key' => '',
-                    'api_secret' => '',
-                    'company_code' => 'SF'
-                ]
-            ];
-        }
-        
+        // 确保 renderSuccess 将数据放在 data 字段中
+        // 如果 $config 是空数组，renderSuccess 可能会将其视为 msg 或做特殊处理
+        // 这里显式指定 data
         return $this->renderSuccess($config, '获取成功');
     }
 
@@ -69,24 +55,48 @@ class WaybillConfig extends Controller
      */
     public function saveApiConfig()
     {
-        $config = $this->request->post('config');
+        // 获取原始数据，不使用默认过滤(htmlspecialchars)
+        $config = $this->request->post('config', null, null);
         
-        if (empty($config)) {
-            return $this->renderError('参数错误');
+        if ($config === null || $config === '') {
+            return $this->renderError('参数错误：配置数据为空');
         }
 
-        // 如果 config 是 JSON 字符串，解析它
+        // 如果被转义了，尝试反转义 (兼容性处理)
+        if (is_string($config) && strpos($config, '&quot;') !== false) {
+            $config = htmlspecialchars_decode($config);
+        }
+
         if (is_string($config)) {
-            $config = json_decode($config, true);
+            $decodedConfig = json_decode($config, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return $this->renderError('JSON 解析失败：' . json_last_error_msg());
+            }
+            $config = $decodedConfig;
+        }
+        
+        if (!is_array($config)) {
+            return $this->renderError('配置数据格式错误：必须是数组，当前类型：' . gettype($config));
+        }
+        
+        if (!isset($config['zhongtong']) || !isset($config['shunfeng'])) {
+            return $this->renderError('配置数据不完整：缺少 zhongtong 或 shunfeng 配置');
         }
 
-        $result = SettingModel::edit('express_api_config', $config, '快递API配置');
-        
-        if ($result) {
-            return $this->renderSuccess([], '保存成功');
+        try {
+            $model = new StoreSettingModel();
+            $result = $model->edit('waybill', $config);
+            
+            if ($result) {
+                return $this->renderSuccess([], '保存成功');
+            }
+            
+            $error = $model->getError();
+            return $this->renderError($error ?: '保存失败');
+            
+        } catch (\Exception $e) {
+            return $this->renderError('保存失败：' . $e->getMessage());
         }
-        
-        return $this->renderError('保存失败');
     }
 
     /**
@@ -109,10 +119,16 @@ class WaybillConfig extends Controller
     public function saveConfig()
     {
         $expressType = $this->request->post('express_type');
-        $config = $this->request->post('config');
+        // 获取原始数据，不使用默认过滤(htmlspecialchars)
+        $config = $this->request->post('config', null, null);
         
         if (empty($expressType) || empty($config)) {
             return $this->renderError('参数错误');
+        }
+
+        // 如果被转义了，尝试反转义 (兼容性处理)
+        if (is_string($config) && strpos($config, '&quot;') !== false) {
+            $config = htmlspecialchars_decode($config);
         }
 
         // 如果 config 是 JSON 字符串，解析它
