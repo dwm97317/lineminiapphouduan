@@ -19,24 +19,7 @@ class Cloudflare extends Server
     public function __construct($config)
     {
         parent::__construct();
-        // 兼容多账号配置：优先取 active_account_id 指定的账号
-        if (isset($config['accounts']) && is_array($config['accounts']) && !empty($config['accounts'])) {
-            $activeId = isset($config['active_account_id']) ? $config['active_account_id'] : null;
-            if ($activeId && isset($config['accounts'][$activeId])) {
-                $this->config = $config['accounts'][$activeId];
-            } else {
-                // 取第一个账号
-                $first = reset($config['accounts']);
-                $this->config = $first;
-            }
-            // 兼容旧字段 domain
-            if (!isset($this->config['domain']) && isset($config['domain'])) {
-                $this->config['domain'] = $config['domain'];
-            }
-        } else {
-            // 单账号老配置
-            $this->config = $config;
-        }
+        $this->config = $config;
     }
 
     /**
@@ -147,7 +130,7 @@ class Cloudflare extends Server
      * @return mixed
      * @throws \Exception
      */
-    private function s3Request($method, $key, $content = '', $contentType = null, array $query = [])
+    private function s3Request($method, $key, $content = '', $contentType = null)
     {
         // Configuration
         $accessKey = $this->config['access_key'];
@@ -162,17 +145,7 @@ class Cloudflare extends Server
         // Host and Endpoint
         // R2 URL format: https://<accountid>.r2.cloudflarestorage.com/<bucket>/<key>
         $host = "{$accountId}.r2.cloudflarestorage.com";
-        $canonicalUriKey = $key ? "/{$bucket}/{$key}" : "/{$bucket}";
-        // Build canonical query string
-        $canonicalQueryString = '';
-        if (!empty($query)) {
-            ksort($query);
-            foreach ($query as $qk => $qv) {
-                $canonicalQueryString .= rawurlencode($qk) . '=' . rawurlencode($qv) . '&';
-            }
-            $canonicalQueryString = rtrim($canonicalQueryString, '&');
-        }
-        $endpoint = "https://{$host}{$canonicalUriKey}" . (strlen($canonicalQueryString) ? "?{$canonicalQueryString}" : "");
+        $endpoint = "https://{$host}/{$bucket}/{$key}";
         
         // AWS Signature V4 Requirements
         $service = 's3';
@@ -198,7 +171,8 @@ class Cloudflare extends Server
         }
 
         // 1. Canonical Request
-        $canonicalUri = $canonicalUriKey;
+        $canonicalUri = "/{$bucket}/{$key}";
+        $canonicalQueryString = '';
         
         // Sort headers
         ksort($headers);
@@ -270,50 +244,5 @@ class Cloudflare extends Server
         }
 
         return $response;
-    }
-
-    /**
-     * 获取桶内已使用容量（字节）
-     * 通过 ListObjectsV2 汇总 size
-     * @param int $maxKeys
-     * @param int $maxPages
-     * @return int
-     * @throws \Exception
-     */
-    public function getBucketUsageBytes($maxKeys = 1000, $maxPages = 100)
-    {
-        $used = 0;
-        $continuation = null;
-        $pages = 0;
-        do {
-            $query = [
-                'list-type' => '2',
-                'max-keys' => (string)$maxKeys,
-            ];
-            if ($continuation) {
-                $query['continuation-token'] = $continuation;
-            }
-            $xml = $this->s3Request('GET', '', '', null, $query);
-            // Parse XML
-            $dom = new \DOMDocument();
-            $dom->loadXML($xml);
-            $sizes = $dom->getElementsByTagName('Size');
-            foreach ($sizes as $size) {
-                $used += (int)$size->nodeValue;
-            }
-            $isTruncated = false;
-            $truncatedNodes = $dom->getElementsByTagName('IsTruncated');
-            if ($truncatedNodes->length > 0) {
-                $isTruncated = strtolower($truncatedNodes->item(0)->nodeValue) === 'true';
-            }
-            $nextToken = null;
-            $nextNodes = $dom->getElementsByTagName('NextContinuationToken');
-            if ($nextNodes->length > 0) {
-                $nextToken = $nextNodes->item(0)->nodeValue;
-            }
-            $continuation = $isTruncated ? $nextToken : null;
-            $pages++;
-        } while ($continuation && $pages < $maxPages);
-        return $used;
     }
 }
