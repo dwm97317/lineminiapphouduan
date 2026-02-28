@@ -50,7 +50,6 @@ class WaybillConfigService
      */
     public function saveConfig($expressType, $config)
     {
-        // 验证配置
         if (!$this->validateConfig($config)) {
             return false;
         }
@@ -58,12 +57,30 @@ class WaybillConfigService
         $key = 'waybill_config_' . $expressType;
         $describe = $this->getExpressName($expressType) . '快递面单配置';
         
-        // 如果没有 wxapp_id，直接使用不带 wxapp_id 的方法
-        if ($this->wxapp_id) {
-            return SettingModel::edit($key, $config, $describe, $this->wxapp_id);
+        $wxapp_id = $this->wxapp_id ?: SettingModel::$wxapp_id;
+        
+        $model = SettingModel::get(['key' => $key, 'wxapp_id' => $wxapp_id]);
+        
+        if ($model) {
+            $result = $model->save([
+                'values' => $config,
+                'describe' => $describe,
+                'update_time' => time()
+            ]);
         } else {
-            return SettingModel::edit($key, $config, $describe);
+            $model = new SettingModel();
+            $result = $model->save([
+                'key' => $key,
+                'values' => $config,
+                'describe' => $describe,
+                'wxapp_id' => $wxapp_id,
+                'update_time' => time()
+            ]);
         }
+        
+        \think\Cache::rm('setting_' . $wxapp_id);
+        
+        return $result !== false;
     }
 
     /**

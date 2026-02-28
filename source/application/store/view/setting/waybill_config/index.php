@@ -52,27 +52,47 @@
                                     </fieldset>
 
                                     <fieldset>
-                                        <legend>顺丰快递 API 配置</legend>
+                                        <legend>顺丰快递 API 配置 (丰桥)</legend>
                                         
                                         <div class="am-form-group">
                                             <label class="am-u-sm-3 am-form-label">API 地址</label>
                                             <div class="am-u-sm-9">
-                                                <input type="text" class="am-form-field" id="sf-api-url" placeholder="https://api.sf-express.com">
-                                                <small class="am-text-grey">顺丰快递 API 接口地址</small>
+                                                <input type="text" class="am-form-field" id="sf-api-url" placeholder="https://bspgw.sf-express.com/std/service">
+                                                <small class="am-text-grey">生产环境: https://bspgw.sf-express.com/std/service <br> 沙箱环境: https://sfapi-sbox.sf-express.com/std/service</small>
                                             </div>
                                         </div>
 
                                         <div class="am-form-group">
-                                            <label class="am-u-sm-3 am-form-label">API Key</label>
+                                            <label class="am-u-sm-3 am-form-label">合作伙伴编码 (partnerID)</label>
                                             <div class="am-u-sm-9">
-                                                <input type="text" class="am-form-field" id="sf-api-key" placeholder="请输入顺丰 API Key">
+                                                <input type="text" class="am-form-field" id="sf-api-key" placeholder="请输入顺丰分配的 Partner ID (顾客编码)">
                                             </div>
                                         </div>
 
                                         <div class="am-form-group">
-                                            <label class="am-u-sm-3 am-form-label">API Secret</label>
+                                            <label class="am-u-sm-3 am-form-label">校验码/密钥 (checkword)</label>
                                             <div class="am-u-sm-9">
-                                                <input type="password" class="am-form-field" id="sf-api-secret" placeholder="请输入顺丰 API Secret">
+                                                <input type="password" class="am-form-field" id="sf-api-secret" placeholder="请输入顺丰分配的 Checkword / 密钥">
+                                            </div>
+                                        </div>
+
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-3 am-form-label">月结卡号 (custid)</label>
+                                            <div class="am-u-sm-9">
+                                                <input type="text" class="am-form-field" id="sf-custid" placeholder="请输入顺丰月结卡号 (可选)">
+                                                <small class="am-text-grey">下单时需要使用的月结卡号，如果是寄付月结则必填</small>
+                                            </div>
+                                        </div>
+
+                                        <div class="am-form-group">
+                                            <label class="am-u-sm-3 am-form-label">默认付款方式</label>
+                                            <div class="am-u-sm-9">
+                                                <select id="sf-pay-method" class="am-form-field">
+                                                    <option value="1">寄方付 (Sender Pay)</option>
+                                                    <option value="2">收方付 (Receiver Pay)</option>
+                                                    <option value="3">第三方付 (Third Party Pay)</option>
+                                                </select>
+                                                <small class="am-text-grey">顺丰下单时的默认付款方式，寄方付通常需要配置月结卡号</small>
                                             </div>
                                         </div>
 
@@ -202,8 +222,15 @@ $(function() {
     // 加载 API 配置
     function loadApiConfig() {
         $.get('<?= url("setting.waybill_config/getApiConfig") ?>', function(result) {
-            if (result.code === 1 && result.data) {
-                apiConfig = result.data;
+            console.log('API Config Result:', result);
+            // 兼容性处理：后端可能把数据放在 msg 字段中，也可能放在 data 字段中
+            var data = result.data;
+            if (Array.isArray(data) && data.length === 0 && result.msg && typeof result.msg === 'object') {
+                data = result.msg;
+            }
+            
+            if (result.code === 1 && data) {
+                apiConfig = data;
                 applyApiConfig(apiConfig);
             }
         });
@@ -222,6 +249,8 @@ $(function() {
             $('#sf-api-url').val(config.shunfeng.api_url || '');
             $('#sf-api-key').val(config.shunfeng.api_key || '');
             $('#sf-api-secret').val(config.shunfeng.api_secret || '');
+            $('#sf-custid').val(config.shunfeng.custid || '');
+            $('#sf-pay-method').val(config.shunfeng.pay_method || '1');
             $('#sf-company-code').val(config.shunfeng.company_code || 'SF');
         }
     }
@@ -239,17 +268,21 @@ $(function() {
                 api_url: $('#sf-api-url').val(),
                 api_key: $('#sf-api-key').val(),
                 api_secret: $('#sf-api-secret').val(),
+                custid: $('#sf-custid').val(),
+                pay_method: $('#sf-pay-method').val(),
                 company_code: $('#sf-company-code').val()
             }
         };
         
+        var loadIndex = layer.load(1); // 开启loading
         $.post('<?= url("setting.waybill_config/saveApiConfig") ?>', {
             config: JSON.stringify(config)
         }, function(result) {
+            layer.close(loadIndex); // 关闭loading
             if (result.code === 1) {
-                layer.msg(result.msg, {icon: 1});
+                layer.msg(result.msg, {icon: 1, time: 2000});
             } else {
-                layer.msg(result.msg, {icon: 2});
+                layer.msg(result.msg, {icon: 2, time: 2000});
             }
         });
     });
@@ -264,10 +297,10 @@ $(function() {
         $.get('<?= url("setting.waybill_config/getFieldList") ?>', {
             express_type: expressType
         }, function(result) {
-            if (result.code === 1) {
+            if (result.code === 1 && result.data) {
                 fieldDefinitions = result.data;
-                renderFieldCheckboxes(fieldDefinitions.fields);
-                renderCompanyFields(fieldDefinitions.company_fields);
+                renderFieldCheckboxes(fieldDefinitions.fields || []);
+                renderCompanyFields(fieldDefinitions.company_fields || []);
             }
         });
 
@@ -284,6 +317,10 @@ $(function() {
 
     // 渲染字段复选框
     function renderFieldCheckboxes(fields) {
+        if (!fields || !Array.isArray(fields)) {
+            console.error('fields is not an array', fields);
+            return;
+        }
         var html = '';
         fields.forEach(function(field) {
             var checked = currentConfig.fields && currentConfig.fields[field.key] ? 'checked' : '';
@@ -391,14 +428,16 @@ $(function() {
     $('#save-config').click(function() {
         var config = collectFormData();
         
+        var loadIndex = layer.load(1); // 开启loading
         $.post('<?= url("setting.waybill_config/saveConfig") ?>', {
             express_type: currentExpressType,
             config: JSON.stringify(config)
         }, function(result) {
+            layer.close(loadIndex); // 关闭loading
             if (result.code === 1) {
-                layer.msg(result.msg, {icon: 1});
+                layer.msg(result.msg, {icon: 1, time: 2000});
             } else {
-                layer.msg(result.msg, {icon: 2});
+                layer.msg(result.msg, {icon: 2, time: 2000});
             }
         });
     });

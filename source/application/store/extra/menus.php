@@ -766,6 +766,16 @@ return [
                 ],
             ],
             [
+                'name' => '快递标签配置',
+                'index' => 'setting.express_service/index',
+                'uris' => [
+                    'setting.express_service/index',
+                    'setting.express_service/add',
+                    'setting.express_service/edit',
+                    'setting.express_service/delete',
+                ],
+            ],
+            [
                 'name' => '物流模板',
                 'index' => 'setting/notice'
             ],

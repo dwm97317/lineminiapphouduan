@@ -12,6 +12,8 @@ use app\store\model\Express as ExpressModel;
 use app\store\model\Ditch as DitchModel;
 use app\common\model\User;
 use app\common\service\Message;
+use app\common\model\ExpressService;
+use app\common\service\WaybillService;
 use app\store\model\User as UserModel;
 use app\store\model\store\Shop as ShopModel;
 use app\common\model\Setting;
@@ -803,6 +805,191 @@ class TrOrder extends Controller
         ));
     }
     
+    /**
+     * 生成电子面单页面
+     * @param $id
+     * @return mixed
+     */
+    public function waybill($id)
+    {
+        // 订单详情
+        $detail = Inpack::details($id);
+        
+        // 获取所有快递服务标签
+        $expressServices = ExpressService::getAllGrouped();
+        
+        return $this->fetch('waybill', compact('detail', 'expressServices'));
+    }
+
+    /**
+     * 创建顺丰运单 (API对接)
+     */
+    public function createSfOrder()
+    {
+        $data = $this->postData('sf');
+        if (empty($data['inpack_id']) || empty($data['express_service_id'])) {
+            return $this->renderError('参数不完整');
+        }
+
+        // 1. 获取订单信息
+        $order = Inpack::details($data['inpack_id']);
+        if (!$order) {
+            return $this->renderError('订单不存在');
+        }
+
+        // 2. 获取快递产品配置
+        $expressProduct = ExpressService::get($data['express_service_id']);
+        if (!$expressProduct) {
+             return $this->renderError('所选快递服务无效');
+        }
+
+        // 3. 获取增值服务配置
+        $vas = [];
+        if (!empty($data['vas']) && is_array($data['vas'])) {
+            foreach ($data['vas'] as $serviceId => $val) {
+                $service = ExpressService::get($serviceId);
+                if ($service && !empty($service['service_code'])) {
+                     $vas[] = [
+                         'code' => $service['service_code'],
+                         'value' => $val 
+                     ];
+                }
+            }
+        }
+
+        // 4. 获取收件地址
+        $address = (new UserAddress())->where('address_id', $order['address_id'])->find();
+        if (!$address) {
+             return $this->renderError('收件地址不存在');
+        }
+
+        // 5. 组装数据
+        $orderData = [
+            'order_sn' => $order['order_sn'],
+            'express_code' => $expressProduct['service_code'], 
+            'vas' => $vas,
+            'weight' => $data['weight'] ?: $order['weight'],
+            'sender' => [
+                'company' => '集运中心',
+                'name' => '仓管员',
+                'mobile' => '13800138000',
+                'province' => '广东省',
+                'city' => '深圳市',
+                'region' => '宝安区',
+                'address' => '福永街道XXX号',
+            ],
+            'receiver' => [
+                'name' => $address['name'],
+                'phone' => $address['phone'],
+                'province' => $address['region']['province'],
+                'city' => $address['region']['city'],
+                'region' => $address['region']['region'],
+                'detail' => $address['detail'],
+            ]
+        ];
+
+        // 6. 调用 Service
+        $sf = new \app\common\library\express\ShunfengExpress($order['wxapp_id']);
+        $result = $sf->createOrder($orderData);
+
+        if ($result['success']) {
+            // 保存运单号
+            $order->save([
+                'express_no' => $result['waybill_no'],
+                'express_company' => '顺丰速运', 
+                'delivery_status' => 20, 
+                'delivery_time' => time(),
+                'status' => 6 
+            ]);
+            
+            // 记录日志
+            Logistics::addLog($order['order_sn'], '顺丰下单成功，运单号：' . $result['waybill_no'], date('Y-m-d H:i:s'));
+
+            return $this->renderSuccess('下单成功', url('store/tr_order/orderdetail', ['id' => $order['id']]));
+        } else {
+            return $this->renderError($result['message'] . (isset($result['full_response']['apiErrorMsg']) ? ': '.$result['full_response']['apiErrorMsg'] : ''));
+        }
+    }
+
+    /**
+     * 打印中通面单预览
+     */
+    public function printZhongtong($id)
+    {
+        $detail = Inpack::details($id);
+        if (!$detail) {
+            return $this->renderError('订单不存在');
+        }
+        
+        // 模拟生成面单数据
+        // 实际开发中这里应该调用 WaybillService 或中通 API 获取面单内容
+        // 目前返回一个简单的 HTML 预览
+        $html = $this->generateWaybillHtml($detail, 'zhongtong');
+        
+        return $html;
+    }
+
+    /**
+     * 打印顺丰面单预览
+     */
+    public function printShunfeng($id)
+    {
+        $detail = Inpack::details($id);
+        if (!$detail) {
+            return $this->renderError('订单不存在');
+        }
+        
+        // 模拟生成面单数据
+        // 实际开发中这里应该调用 WaybillService 或顺丰 API 获取面单内容
+        $html = $this->generateWaybillHtml($detail, 'shunfeng');
+        
+        return $html;
+    }
+
+    /**
+     * 生成面单 HTML (模拟)
+     */
+    private function generateWaybillHtml($order, $type)
+    {
+        $typeName = $type == 'zhongtong' ? '中通快递' : '顺丰速运';
+        $now = date('Y-m-d H:i:s');
+        $address = $order['address'] ? $order['address'] : [];
+        $name = isset($address['name']) ? $address['name'] : '';
+        $phone = isset($address['phone']) ? $address['phone'] : '';
+        $detailAddr = isset($address['detail']) ? $address['detail'] : '';
+        $province = isset($address['province']) ? $address['province'] : '';
+        $city = isset($address['city']) ? $address['city'] : '';
+        $region = isset($address['region']) ? $address['region'] : '';
+
+        $html = <<<HTML
+<div style="width: 370px; height: 500px; border: 1px solid #000; padding: 10px; font-family: SimHei; position: relative;">
+    <div style="text-align: center; font-size: 24px; font-weight: bold; border-bottom: 2px solid #000; padding-bottom: 10px;">
+        {$typeName}
+    </div>
+    <div style="margin-top: 10px; font-size: 14px;">
+        <div><strong>订单号:</strong> {$order['order_sn']}</div>
+        <div><strong>打印时间:</strong> {$now}</div>
+    </div>
+    <div style="border: 1px solid #000; margin-top: 10px; padding: 10px;">
+        <div style="font-size: 16px; font-weight: bold;">收</div>
+        <div><strong>姓名:</strong> {$name}</div>
+        <div><strong>电话:</strong> {$phone}</div>
+        <div><strong>地址:</strong> {$detailAddr}</div>
+        <div>{$province} {$city} {$region}</div>
+    </div>
+    <div style="border: 1px solid #000; margin-top: 10px; padding: 10px;">
+        <div style="font-size: 16px; font-weight: bold;">寄</div>
+        <div><strong>寄件人:</strong> 集运中心</div>
+    </div>
+    <div style="margin-top: 20px; text-align: center;">
+        <div style="font-size: 30px; font-weight: bold;">123-456-789</div>
+        <div>(此处为条码区域)</div>
+    </div>
+</div>
+HTML;
+        return $html;
+    }
+
     // 发货物流
     public function delivery($id){
         $detail = Inpack::details($id);

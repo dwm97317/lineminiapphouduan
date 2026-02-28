@@ -433,7 +433,19 @@
                                             <a href="javascript:void(0);" data-id="<?= $item['id'] ?>" class="j-express">
                                                 <i class="iconfont icon-dayinji_o"></i> 打印面单
                                             </a>
-                                            <?php endif ;endif;?>
+                                            <?php endif; ?>
+                                            <?php endif; ?>
+                                            
+                                            <!-- 待发货状态下增加中通和顺丰打印按钮 -->
+                                            <?php if ($dataType == 'payed'): ?>
+                                                <a href="javascript:void(0);" data-id="<?= $item['id'] ?>" class="j-print-zt">
+                                                    <i class="iconfont icon-dayinji_o"></i> 打印中通面单
+                                                </a>
+                                                <a href="javascript:void(0);" data-id="<?= $item['id'] ?>" class="j-print-sf">
+                                                    <i class="iconfont icon-dayinji_o"></i> 打印顺丰面单
+                                                </a>
+                                            <?php endif; ?>
+
                                             <!--物流更新-->
                                             <?php if (checkPrivilege('tr_order/logistics')): ?>
                                             <?php if ($item['status']>=6): ?>
@@ -1312,6 +1324,102 @@
                
            })
         }); 
+
+        // 打印中通面单
+        $(".j-print-zt").on('click', function() {
+            var data = $(this).data();
+            $.ajax({
+                url: '<?= url('store/trOrder/printZhongtong') ?>',
+                type: "get",
+                data: {id: data['id']},
+                success: function(result) {
+                    if (result.code === 0) {
+                        layer.alert(result.msg, {icon: 5});
+                        return;
+                    }
+                    $.showModal({
+                        title: '中通面单预览',
+                        area: '600px,700px',
+                        content: result,
+                        yes: function($content) {
+                            PrintDiv(result)
+                        }
+                    });
+                }
+            });
+        });
+
+        // 打印顺丰面单
+        $(".j-print-sf").on('click', function() {
+            var data = $(this).data();
+            $.ajax({
+                url: '<?= url('store/trOrder/printShunfeng') ?>',
+                type: "get",
+                data: {id: data['id']},
+                success: function(result) {
+                    if (result.code === 0) {
+                        layer.alert(result.msg, {icon: 5});
+                        return;
+                    }
+                    $.showModal({
+                        title: '顺丰面单预览',
+                        area: '600px,700px',
+                        content: result,
+                        yes: function($content) {
+                            PrintDiv(result)
+                        }
+                    });
+                }
+            });
+        }); 
+
+        // 打印中通面单
+        $(".j-print-zt").on('click', function() {
+            var data = $(this).data();
+            $.ajax({
+                url: '<?= url('store/trOrder/printZhongtong') ?>',
+                type: "get",
+                data: {id: data['id']},
+                success: function(result) {
+                    if (result.code === 0) {
+                        layer.alert(result.msg, {icon: 5});
+                        return;
+                    }
+                    $.showModal({
+                        title: '中通面单预览',
+                        area: '600px,700px',
+                        content: result,
+                        yes: function($content) {
+                            PrintDiv(result)
+                        }
+                    });
+                }
+            });
+        });
+
+        // 打印顺丰面单
+        $(".j-print-sf").on('click', function() {
+            var data = $(this).data();
+            $.ajax({
+                url: '<?= url('store/trOrder/printShunfeng') ?>',
+                type: "get",
+                data: {id: data['id']},
+                success: function(result) {
+                    if (result.code === 0) {
+                        layer.alert(result.msg, {icon: 5});
+                        return;
+                    }
+                    $.showModal({
+                        title: '顺丰面单预览',
+                        area: '600px,700px',
+                        content: result,
+                        yes: function($content) {
+                            PrintDiv(result)
+                        }
+                    });
+                }
+            });
+        });
  
         
         function PrintDiv(content) {
