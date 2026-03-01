@@ -41,20 +41,8 @@ source/web/uploads/
 # Runtime logs
 source/runtime/
 
-# Vendor updates (keep vendor directory but ignore new packages)
-source/vendor/aliyuncs/oss-sdk-php/samples/
-source/vendor/aliyuncs/oss-sdk-php/src/OSS/Credentials/
-source/vendor/aliyuncs/oss-sdk-php/src/OSS/Model/
-source/vendor/aliyuncs/oss-sdk-php/src/OSS/Result/
-source/vendor/aliyuncs/oss-sdk-php/src/OSS/Signer/
-source/vendor/guzzlehttp/
-source/vendor/markbaker/
-source/vendor/myclabs/
-source/vendor/phpmailer/
-source/vendor/phpoffice/
-source/vendor/picqer/
-source/vendor/psr/
-source/vendor/qiniu/
+# Vendor directory - ignore all changes
+source/vendor/
 
 # Temporary image files
 *.jpg
