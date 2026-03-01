@@ -72,3 +72,9 @@ source/thinkphp/
 # Composer files
 source/composer.json
 source/composer.lock
+composer.phar
+vendor/
+source/vendor/
+
+# Temporary files directory
+temp_files/
