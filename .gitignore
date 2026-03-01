@@ -21,6 +21,7 @@ tests/
 
 # Test files
 test_*.php
+!test_full_import_workflow.php
 *_test.php
 check_*.php
 clear_*.php
@@ -80,7 +81,6 @@ source/thinkphp/
 !source/thinkphp/.gitkeep
 
 # Composer files
-source/composer.json
 source/composer.lock
 composer.phar
 vendor/
