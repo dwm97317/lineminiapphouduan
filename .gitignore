@@ -14,3 +14,53 @@ AGENTS.md
 .trae/
 *.code-workspace
 tests/
+
+# IDE specific directories
+.claude/
+.cursor/
+.agent/
+
+# Test files
+test_*.php
+*_test.php
+check_*.php
+clear_*.php
+create_test_*.php
+regenerate_*.php
+
+# Temporary SQL files
+clear_*.sql
+
+# Batch scripts
+*.bat
+
+# Upload directories
+uploads/
+source/web/uploads/
+
+# Runtime logs
+source/runtime/
+
+# Vendor updates (keep vendor directory but ignore new packages)
+source/vendor/aliyuncs/oss-sdk-php/samples/
+source/vendor/aliyuncs/oss-sdk-php/src/OSS/Credentials/
+source/vendor/aliyuncs/oss-sdk-php/src/OSS/Model/
+source/vendor/aliyuncs/oss-sdk-php/src/OSS/Result/
+source/vendor/aliyuncs/oss-sdk-php/src/OSS/Signer/
+source/vendor/guzzlehttp/
+source/vendor/markbaker/
+source/vendor/myclabs/
+source/vendor/phpmailer/
+source/vendor/phpoffice/
+source/vendor/picqer/
+source/vendor/psr/
+source/vendor/qiniu/
+
+# Temporary image files
+*.jpg
+*.png
+*.gif
+*.jpeg
+
+# Chinese filename files
+*[\u4e00-\u9fa5]*.md
