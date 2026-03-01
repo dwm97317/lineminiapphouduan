@@ -1,21 +1,16 @@
 <!-- 账单信息列组件 -->
 <td class="am-text-middle">
     <?php 
-    // Inpack订单：检查其包含的包裹是否有账单
+    // Inpack订单：直接使用自己的账单信息
     $hasStatement = false;
     $statementInfo = null;
-    if (!empty($item['pack_ids'])) {
-        $packageIds = explode(',', $item['pack_ids']);
-        // 查询第一个有账单的包裹
-        $package = \app\store\model\Package::where('id', 'in', $packageIds)
-            ->where('statement_id', '>', 0)
-            ->with(['statement' => function($query) {
-                $query->field('id,statement_no,pay_status');
-            }])
+    if (!empty($item['statement_id'])) {
+        // 查询账单信息
+        $statementInfo = \app\store\model\Statement::where('id', $item['statement_id'])
+            ->field('id,statement_no,pay_status')
             ->find();
-        if ($package && $package['statement_id']) {
+        if ($statementInfo) {
             $hasStatement = true;
-            $statementInfo = $package['statement'];
         }
     }
     ?>

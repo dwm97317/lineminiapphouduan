@@ -27,10 +27,16 @@ clear_*.php
 create_test_*.php
 regenerate_*.php
 clear_cache.php
+fix_*.php
 
 # Temporary SQL files
 *.sql
 !database/migrations/*.sql
+
+# Test Excel files
+test*.xlsx
+*.xlsx
+!docs/**/*.xlsx
 
 # Batch scripts
 *.bat
@@ -64,6 +70,10 @@ node_modules/
 
 # Debug logs
 scripts/debug/*.txt
+
+# Temporary result files
+import_result.txt
+*_result.txt
 
 # ThinkPHP framework - ignore all changes to vendor framework
 source/thinkphp/

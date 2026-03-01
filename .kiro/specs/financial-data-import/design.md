@@ -1,4 +1,4 @@
-# 设计文档: 财务原始数据导入
+# 设计文档: 财务原始数据导入 (修订版)
 
 ## 概述
 
@@ -19,7 +19,7 @@
 1. **准确性**: 通过多级匹配策略确保订单匹配的准确性
 2. **容错性**: 支持部分成功，单个客户的失败不影响其他客户
 3. **可追溯性**: 完整的导入报告和历史记录
-4. **用户友好**: 提供预览和手动修正功能，降低错误风险
+4. **性能**: 支持大文件流式处理，避免内存溢出
 
 ## 架构
 
@@ -41,10 +41,10 @@ Database (inpack, statement)
 
 PaymentImportService 是核心服务类，包含以下子组件：
 
-1. **ExcelParser**: Excel文件解析器
-2. **ColorDetector**: 颜色检测器
-3. **OrderMatcher**: 订单匹配器
-4. **StatusUpdater**: 状态更新器
+1. **ExcelParser**: Excel文件解析器（优化大文件读取）
+2. **ColorDetector**: 颜色检测器（带容差处理）
+3. **OrderMatcher**: 订单匹配器（带重复检测）
+4. **StatusUpdater**: 状态更新器（批量事务处理）
 
 ### 数据流
 
@@ -200,9 +200,13 @@ private function isWhite($rgb);
 private function matchOrder($rowData);
 
 /**
- * 通过国际单号精确匹配
+ * 通过国际单号精确匹配 (增加重复检测)
  * @param string $expressNum
- * @return array|null
+ * @return array [
+ *   'match_type' => 'exact|multiple_db|none',
+ *   'order' => array|null,
+ *   'warning' => string|null
+ * ]
  */
 private function matchByExpressNum($expressNum);
 
@@ -369,24 +373,37 @@ private function updateGreenRow($order);
 
 ### 2. 数据库表
 
-#### inpack (集运订单表)
+#### yoshop_inpack (集运订单表)
 
-相关字段：
+相关字段（基于实际数据库结构）：
 
 ```sql
-id INT PRIMARY KEY
-order_sn VARCHAR(50)
-member_id INT
-express_num VARCHAR(100)  -- 国际单号
-weight DECIMAL(10,2)
-cale_weight DECIMAL(10,2)  -- 计费重量
-is_pay TINYINT  -- 支付状态: 0=未支付, 1=已支付
-pay_time DATETIME  -- 支付时间
-statement_id INT  -- 账单ID
-is_delete TINYINT
-wxapp_id INT
+id INT PRIMARY KEY AUTO_INCREMENT
+order_sn VARCHAR(255)  -- 打包单号
+member_id INT  -- 用户ID
+express_num VARCHAR(100)  -- 国际单号（实际字段不存在，需要通过pack_ids关联package表）
+weight DOUBLE(10,2)  -- 实际重量
+cale_weight DOUBLE(10,2)  -- 计费重量
+is_pay TINYINT  -- 支付状态: 1=已支付, 2=未支付, 3=待审核
+pay_time DATETIME  -- 支付完成时间
+statement_id INT UNSIGNED  -- 账单ID
+is_delete TINYINT  -- 0=默认, 1=删除
+wxapp_id INT  -- 所属商家
 created_time DATETIME
+pack_ids TEXT  -- 包裹ID列表（逗号分隔）
+real_payment DECIMAL(10,2)  -- 实付支付金额
+free DECIMAL(10,2)  -- 基础线路费用
+pack_free DECIMAL(10,2)  -- 服务项目费用
+other_free DECIMAL(10,2)  -- 其他费用
+unit_price DECIMAL(10,2)  -- 单价
+calculated_amount VARCHAR(255)  -- 计算金额
 ```
+
+**重要说明**：
+- `yoshop_inpack` 表没有直接的 `express_num` 字段
+- 国际单号存储在关联的 `yoshop_package` 表中
+- 需要通过 `pack_ids` 字段（逗号分隔的包裹ID）关联查询
+- `is_pay` 字段值：1=已支付, 2=未支付（与设计假设不同）
 
 #### statement (账单表)
 
@@ -419,11 +436,11 @@ function isBlue($rgb) {
         && $rgb['b'] > $rgb['g'] + 30;
 }
 
-// 粉红色检测
+// 粉红色检测 (修订)
 function isPink($rgb) {
     return $rgb['r'] > 200 
-        && $rgb['g'] > 150 
-        && $rgb['b'] > 150;
+        && $rgb['r'] > $rgb['g'] + 30 
+        && $rgb['r'] > $rgb['b'] + 30;
 }
 
 // 绿色检测
@@ -444,18 +461,32 @@ function isWhite($rgb) {
 
 #### 优先级1: 精确匹配（国际单号）
 
+**注意**: `yoshop_inpack` 表没有 `express_num` 字段，需要通过关联 `yoshop_package` 表查询：
+
 ```sql
-SELECT * FROM inpack 
-WHERE express_num = ? 
-  AND wxapp_id = ? 
-  AND is_delete = 0
+-- 方案1: 通过pack_ids关联查询
+SELECT i.* FROM yoshop_inpack i
+WHERE i.wxapp_id = ? 
+  AND i.is_delete = 0
+  AND FIND_IN_SET(
+    (SELECT id FROM yoshop_package WHERE express_num = ? LIMIT 1),
+    i.pack_ids
+  ) > 0
+LIMIT 1
+
+-- 方案2: 使用JOIN（推荐，性能更好）
+SELECT i.* FROM yoshop_inpack i
+INNER JOIN yoshop_package p ON FIND_IN_SET(p.id, i.pack_ids)
+WHERE p.express_num = ?
+  AND i.wxapp_id = ?
+  AND i.is_delete = 0
 LIMIT 1
 ```
 
 #### 优先级2: 模糊匹配（用户ID + 重量 + 日期）
 
 ```sql
-SELECT * FROM inpack 
+SELECT * FROM yoshop_inpack 
 WHERE member_id = ? 
   AND wxapp_id = ? 
   AND is_delete = 0
@@ -464,6 +495,11 @@ WHERE member_id = ?
   AND created_time BETWEEN ? AND ?
 ORDER BY ABS(weight - ?) ASC
 ```
+
+**注意**: `is_pay` 字段值含义：
+- 1 = 已支付
+- 2 = 未支付
+- 3 = 待审核
 
 ### 5. 历史账单编号格式
 
@@ -545,9 +581,11 @@ HISTORY_{Member_ID}_{Timestamp}
 
 ### 属性8: 国际单号精确匹配
 
-*对于任何*非空的International_Tracking_Number，Order_Matcher应该首先尝试通过express_num字段进行精确匹配，且查询应该过滤wxapp_id和is_delete = 0。
+*对于任何*非空的International_Tracking_Number，Order_Matcher应该首先尝试通过关联 `yoshop_package` 表的 `express_num` 字段进行精确匹配（因为 `yoshop_inpack` 表没有直接的 `express_num` 字段），且查询应该过滤 `wxapp_id` 和 `is_delete = 0`。
 
 **验证需求: 3.1, 3.2**
+
+**实现注意**: 需要通过 `pack_ids` 字段关联 `yoshop_package` 表查询。
 
 ### 属性9: 精确匹配返回格式
 
@@ -1028,16 +1066,23 @@ foreach ($spreadsheet->getAllSheets() as $sheet) {
 ### 2. 日期解析
 
 ```php
-private function parseDateRange($dateStr)
+private function parseDateRange($dateStr, $defaultYear = null)
 {
+    $year = $defaultYear ?? date('Y');
     // 匹配中文日期格式: "2月13日"
     if (preg_match('/(\d+)月(\d+)日/', $dateStr, $matches)) {
         $month = intval($matches[1]);
         $day = intval($matches[2]);
-        $year = date('Y');
         
         $startTime = strtotime("{$year}-{$month}-{$day} 00:00:00");
         $endTime = strtotime("{$year}-{$month}-{$day} 23:59:59");
+        
+        // 如果解析出的日期晚于今天且未指定年份，自动减1年
+        if ($startTime > time() && $defaultYear === null) {
+            $year--;
+            $startTime = strtotime("{$year}-{$month}-{$day} 00:00:00");
+            $endTime = strtotime("{$year}-{$month}-{$day} 23:59:59");
+        }
         
         return ['start' => $startTime, 'end' => $endTime];
     }
@@ -1103,6 +1148,21 @@ private function parseDateRange($dateStr)
     'failure_count' => $failureCount
 ]);
 ```
+
+## 增强属性与实现注意事项 (审计修订)
+
+### 新增属性
+- **属性37: 数据库重复单号检测**: 发现存在多个未删除的相同国际单号记录时，Order_Matcher 返回 `multiple_db` 并在预览界面告警。
+- **属性38: 跨年日期智能回退**: 如果解析日期处于未来时间点，且未显式指定年份，则年份自动回退一年。
+- **属性39: 内存安全限制**: 大文件(>2000行)必须使用分块处理(ChunkReadFilter)并配合 `setReadFilter`，避免 OOM。
+
+### 内存与性能优化
+- 强烈建议在解析前使用 `\PhpOffice\PhpSpreadsheet\Settings::setCache()` 开启缓存以应对高内存的单元格样式。
+- 将导入执行逻辑按 Member_ID 分批(Batch)，通过前端 AJAX 分页调用，防止 PHP `max_execution_time` 超时。
+
+### UI 交互增强
+- 提供“默认数据年份”选择器供用户跨年上传时指定。
+- 遇 `multiple_db` 重复单号时，强制用户在预览界面人工核对。
 
 ## 总结
 

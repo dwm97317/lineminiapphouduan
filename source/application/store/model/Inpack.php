@@ -956,4 +956,14 @@ class Inpack extends InpackModel
         }
         return $this->where($filter)->sum('real_payment');
     }
+    
+    /**
+     * 关联账单表
+     * @return \think\model\relation\BelongsTo
+     */
+    public function statement()
+    {
+        return $this->belongsTo('app\store\model\Statement', 'statement_id', 'id')
+            ->field('id,statement_no,pay_status');
+    }
 }
