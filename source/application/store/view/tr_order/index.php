@@ -126,6 +126,17 @@
                                             <?php endforeach; endif; ?>
                                         </select>
                                     </div>
+                                    <!-- 账单状态筛选器 -->
+                                    <div class="am-form-group am-fl">
+                                        <?php $statementStatus = $request->get('statement_status'); ?>
+                                        <select name="statement_status"
+                                                data-am-selected="{btnSize: 'sm', placeholder: '账单状态'}">
+                                            <option value="">账单状态</option>
+                                            <option value="unbilled" <?= $statementStatus === 'unbilled' ? 'selected' : '' ?>>未出账</option>
+                                            <option value="unpaid" <?= $statementStatus === 'unpaid' ? 'selected' : '' ?>>已出账未支付</option>
+                                            <option value="paid" <?= $statementStatus === 'paid' ? 'selected' : '' ?>>已支付</option>
+                                        </select>
+                                    </div>
                                     <div class="am-form-group tpl-form-border-form am-fl">
                                         <input style="padding:6px 5px;" type="text" name="start_time"
                                                class="am-form-field"
@@ -206,6 +217,16 @@
                         <button type="button" id="j-batch" class="am-btn am-btn-secondary am-radius"><i class="iconfont icon-pintuan"></i> 加入批次</button>
                         <?php endif;?>
                         
+                        <!-- 账单操作按钮 -->
+                        <?php if (checkPrivilege('package.statement/create')): ?>
+                        <button type="button" id="j-create-statement" class="am-btn am-btn-primary am-radius">
+                            <i class="iconfont icon-dingdan"></i> 生成账单
+                        </button>
+                        <?php endif;?>
+                        <a href="<?= url('finance.config/index') ?>#tab-statement-list" class="am-btn am-btn-default am-radius">
+                            <i class="iconfont icon-liebiao"></i> 账单列表
+                        </a>
+                        
                         <!--导出-->
                         <?php if (checkPrivilege('tr_order/loaddingoutexcel')): ?>
                         <button type="button" id="j-export" class="am-btn am-btn-warning am-radius"><i class="iconfont icon-daochu"></i> 导出订单</button>
@@ -229,6 +250,7 @@
                                 <th>收货信息</th>
                                 <th>费用信息</th>
                                 <th>包裹信息</th>
+                                <th>账单信息</th>
                                 <th>时间</th>
                                 <th>支付状态</th>
                                 <th>状态</th>
@@ -242,7 +264,7 @@
                         
                                 <tr>
                                     <td class="am-text-middle">
-                                       <input name="checkIds" type="checkbox" value="<?= $item['id'] ?>"> 
+                                       <input name="checkIds" type="checkbox" value="<?= $item['id'] ?>" data-member-id="<?= $item['member_id'] ?>"> 
                                     </td>
                                     <td class="am-text-middle">
                                         <span style="cursor:pointer" text="<?= $item['order_sn'] ?>" onclick="copyUrl2(this)"><?= $item['order_sn'] ?></span></br>
@@ -353,6 +375,30 @@
                                         计费重量(<?= $set['weight_mode']['unit'] ?>):<?= $item['cale_weight'] ?></br></br>
                                         共有 <?= $item['num'] ?> 个包裹 </br>
                                         <a href="<?= url('store/trOrder/package', ['id' => $item['id']]) ?>">查看包裹明细</a>
+                                    </td>
+                                    <!-- 账单信息列 -->
+                                    <td class="am-text-middle">
+                                        <?php if (!empty($item['statement_id'])): ?>
+                                            <?php 
+                                            // 加载账单信息
+                                            $statement = \app\store\model\Statement::where('id', $item['statement_id'])
+                                                ->field('id,statement_no,pay_status')
+                                                ->find();
+                                            ?>
+                                            <?php if ($statement): ?>
+                                                <a href="<?= url('package.statement/detail', ['statement_id' => $statement['id']]) ?>" 
+                                                   style="color:#1686ef">
+                                                    <?= $statement['statement_no'] ?>
+                                                </a></br>
+                                                <?php if ($statement['pay_status'] == 2): ?>
+                                                    <span class="am-badge am-badge-success">已支付</span>
+                                                <?php else: ?>
+                                                    <span class="am-badge am-badge-warning">未支付</span>
+                                                <?php endif; ?>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <span class="am-text-muted">未出账</span>
+                                        <?php endif; ?>
                                     </td>
                             
                                     <td class="am-text-middle">
@@ -1604,5 +1650,71 @@
     });
     
      
+</script>
+
+<!-- 账单功能JavaScript -->
+<script>
+$(function() {
+    /**
+     * 生成账单
+     */
+    $('#j-create-statement').on('click', function () {
+        var selectIds = checker.getCheckSelect();
+        
+        if (selectIds.length === 0) {
+            layer.msg('请先选择订单');
+            return;
+        }
+        
+        // 验证是否同一客户
+        var memberIds = [];
+        $('input[name="checkIds"]:checked').each(function() {
+            var memberId = $(this).data('member-id');
+            if (memberId && memberIds.indexOf(memberId) === -1) {
+                memberIds.push(memberId);
+            }
+        });
+        
+        if (memberIds.length === 0) {
+            layer.msg('无法获取客户信息');
+            return;
+        }
+        
+        if (memberIds.length > 1) {
+            layer.msg('只能选择同一客户的订单生成账单');
+            return;
+        }
+        
+        // 确认生成
+        layer.confirm('确定为选中的 ' + selectIds.length + ' 个集运单生成账单吗？', {
+            title: '生成账单',
+            btn: ['确定', '取消']
+        }, function(index) {
+            $.ajax({
+                type: 'POST',
+                url: "<?= url('package.statement/create') ?>",
+                data: {
+                    inpack_ids: selectIds,
+                    member_id: memberIds[0]
+                },
+                dataType: "json",
+                success: function(res) {
+                    if (res.code == 1) {
+                        layer.msg('账单生成成功', {icon: 1});
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        layer.msg(res.msg, {icon: 2});
+                    }
+                },
+                error: function() {
+                    layer.msg('网络错误，请稍后重试', {icon: 2});
+                }
+            });
+            layer.close(index);
+        });
+    });
+});
 </script>
 

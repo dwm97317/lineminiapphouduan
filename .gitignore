@@ -1,7 +1,6 @@
 .idea
 composer.lock
 *.log
-*.txt
 *.css.map
 .sass-cache
 
@@ -27,9 +26,11 @@ check_*.php
 clear_*.php
 create_test_*.php
 regenerate_*.php
+clear_cache.php
 
 # Temporary SQL files
-clear_*.sql
+*.sql
+!database/migrations/*.sql
 
 # Batch scripts
 *.bat
@@ -37,6 +38,7 @@ clear_*.sql
 # Upload directories
 uploads/
 source/web/uploads/
+web/uploads/
 
 # Runtime logs
 source/runtime/
@@ -50,5 +52,23 @@ source/vendor/
 *.gif
 *.jpeg
 
-# Chinese filename files
-*[\u4e00-\u9fa5]*.md
+# Temporary markdown files with Chinese characters
+新功能*.md
+*概念*.md
+
+# Temporary fix documentation
+docs/fixes/*FIX*.md
+
+# Node modules
+node_modules/
+
+# Debug logs
+scripts/debug/*.txt
+
+# ThinkPHP framework - ignore all changes to vendor framework
+source/thinkphp/
+!source/thinkphp/.gitkeep
+
+# Composer files
+source/composer.json
+source/composer.lock

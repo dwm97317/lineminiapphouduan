@@ -980,4 +980,9 @@ class Package extends PackageModel
     public function batch(){
         return $this->belongsTo('app\store\model\Batch');
     }
+    
+    public function statement(){
+        return $this->belongsTo('app\store\model\Statement', 'statement_id', 'id')
+            ->field('id,statement_no,pay_status');
+    }
 }

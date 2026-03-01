@@ -47,19 +47,21 @@ class Inpack extends InpackModel
      */
     public function getList($dataType, $query = [])
     {
-        // 检索查询条件
-        !empty($query) && $this->setWhere($query);
         !isset($query['limitnum']) && $query['limitnum'] = 10;
         // 获取数据列表 - 使用 Db 查询避免触发 UserAddress 模型的访问器
-        $res= \think\Db::name('inpack')
+        $db = \think\Db::name('inpack')
             ->alias('pa')
             ->field('pa.*,ba.batch_id,ba.batch_name,ba.batch_no,u.nickName,add.address_id,add.name,add.phone,add.country,add.province,add.city,add.region,add.detail,add.identitycard,add.clearancecode,add.street,add.door,add.code,add.email')
             ->join('user u','u.user_id = pa.member_id','left')
             ->join('user_address add','add.address_id = pa.address_id','left')
             ->join('batch ba','ba.batch_id = pa.batch_id','left')
             ->where('pa.status','in',$this->status[$dataType])
-            ->where('pa.is_delete',0)
-            ->order('pa.created_time', 'desc')
+            ->where('pa.is_delete',0);
+            
+        // 检索查询条件
+        !empty($query) && $this->setWhere($query, $db);
+        
+        $res = $db->order('pa.created_time', 'desc')
             ->paginate($query['limitnum'], false, [
                 'query' => \request()->request()
             ]);
@@ -156,19 +158,22 @@ class Inpack extends InpackModel
      */
     public function getNoPayList($dataType, $query = [])
     {
-        // 检索查询条件
-        !empty($query) && $this->setWhere($query);
         !isset($query['limitnum']) && $query['limitnum'] = 10;
         // 获取数据列表 - 使用 Db 查询避免触发 UserAddress 模型的访问器
-        $res= \think\Db::name('inpack')
+        $db = \think\Db::name('inpack')
             ->alias('pa')
             ->field('pa.*,u.nickName,add.name as address_name,add.phone as address_phone,add.country,add.province,add.city,add.region,add.detail')
             ->join('user u','u.user_id = pa.member_id','left')
             ->join('user_address add','add.address_id = pa.address_id','left')
+            ->join('batch ba','ba.batch_id = pa.batch_id','left') // 为了 setWhere 能够检索 batch相关字段
             ->where('pa.status','in',$this->status[$dataType])
             ->where('pa.is_delete',0)
-            ->where('pa.is_pay',2)
-            ->order('pa.created_time', 'desc')
+            ->where('pa.is_pay',2);
+            
+        // 检索查询条件
+        !empty($query) && $this->setWhere($query, $db);
+        
+        $res = $db->order('pa.created_time', 'desc')
             ->paginate($query['limitnum'], false, [
                 'query' => \request()->request()
             ]);
@@ -216,19 +221,22 @@ class Inpack extends InpackModel
      */
     public function getQuicklypack($dataType, $query = [])
     {
-        // 检索查询条件
-        !empty($query) && $this->setWhere($query);
         !isset($query['limitnum']) && $query['limitnum'] = 10;
         // 获取数据列表 - 使用 Db 查询避免触发 UserAddress 模型的访问器
-        $res= \think\Db::name('inpack')
+        $db = \think\Db::name('inpack')
             ->alias('pa')
             ->field('pa.*,u.nickName')
             ->join('user u','u.user_id = pa.member_id','left')
             ->join('user_address add','add.address_id = pa.address_id','left')
+            ->join('batch ba','ba.batch_id = pa.batch_id','left') // 为了 setWhere 能够检索 batch相关字段
             ->where('pa.status','in',$this->status[$dataType])
             ->where('pa.is_delete',0)
-            ->where('pa.address_id',null)
-            ->order('pa.created_time', 'desc')
+            ->where('pa.address_id',null);
+            
+        // 检索查询条件
+        !empty($query) && $this->setWhere($query, $db);
+        
+        $res = $db->order('pa.created_time', 'desc')
             ->paginate($query['limitnum'], false, [
                 'query' => \request()->request()
             ]);
@@ -772,28 +780,38 @@ class Inpack extends InpackModel
         return $detail;
     }
 
-    public function setWhere($query){
+    public function setWhere($query, $db = null){
+        $db = $db ?: $this;
         // dump($query);die;
-        !empty($query['status']) && $this->where('pa.status','in',$query['status']);
-        !empty($query['order_sn']) && $this->where('pa.order_sn|pa.t_order_sn','like','%'.$query['order_sn'].'%');
-        !empty($query['extract_shop_id']) && $this->where('pa.storage_id','=',$query['extract_shop_id']);
-        !empty($query['line_id']) && $this->where('pa.line_id','=',$query['line_id']);
-        !empty($query['service_id']) && $this->where('u.service_id','=',$query['service_id']);
-        !empty($query['user_code']) && $this->where('u.user_code','=',$query['user_code']);
-        !empty($query['user_id']) && $this->where('pa.member_id','=',$query['user_id']);
-        !empty($query['batch_no']) && $this->where('ba.batch_name|ba.batch_no','=',$query['batch_no']);
-        !empty($query['batch_id']) && $this->where('pa.batch_id','=',$query['batch_id']);
-        !empty($query['start_time']) && $this->where('created_time', '>', $query['start_time']);
-        !empty($query['end_time']) && $this->where('created_time', '<', $query['end_time']." 23:59:59");
-        !empty($query['search']) && $this->where('pa.member_id|u.nickName|u.user_code','like','%'.$query['search'].'%');
+        !empty($query['status']) && $db->where('pa.status','in',$query['status']);
+        !empty($query['order_sn']) && $db->where('pa.order_sn|pa.t_order_sn','like','%'.$query['order_sn'].'%');
+        !empty($query['extract_shop_id']) && $db->where('pa.storage_id','=',$query['extract_shop_id']);
+        !empty($query['line_id']) && $db->where('pa.line_id','=',$query['line_id']);
+        !empty($query['service_id']) && $db->where('u.service_id','=',$query['service_id']);
+        !empty($query['user_code']) && $db->where('u.user_code','=',$query['user_code']);
+        !empty($query['user_id']) && $db->where('pa.member_id','=',$query['user_id']);
+        !empty($query['batch_no']) && $db->where('ba.batch_name|ba.batch_no','=',$query['batch_no']);
+        !empty($query['batch_id']) && $db->where('pa.batch_id','=',$query['batch_id']);
+        !empty($query['start_time']) && $db->where('pa.created_time', '>', $query['start_time']);
+        !empty($query['end_time']) && $db->where('pa.created_time', '<', $query['end_time']." 23:59:59");
+        
+        // 搜索框：支持用户ID、昵称、用户编码
+        if(!empty($query['search'])){
+            $db->where(function($q) use ($query) {
+                $q->where('pa.member_id', '=', $query['search'])
+                  ->whereOr('u.nickName', 'like', '%'.$query['search'].'%')
+                  ->whereOr('u.user_code', 'like', '%'.$query['search'].'%');
+            });
+        }
+        
         if(!empty($query['tr_number'])){
             $express_num = str_replace("\r\n","\n",trim($query['tr_number']));
             $express_num = explode("\n",$express_num);
             $express_num = implode(',',$express_num);
-            $where['t_order_sn'] = array('in', $express_num);
-            $this->where($where);
+            $where['pa.t_order_sn'] = array('in', $express_num);
+            $db->where($where);
         }
-        return $this;
+        return $db;
     }
     
     // 获取面单相关数据

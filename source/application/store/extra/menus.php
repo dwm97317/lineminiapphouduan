@@ -789,6 +789,20 @@ return [
               ],
             ],
             [
+                'name' => '账单组件',
+                'active' => true,
+                'submenu' => [
+                    [
+                        'name' => '账单设置',
+                        'index' => 'finance.config/index',
+                    ],
+                    [
+                        'name' => '账单列表',
+                        'index' => 'finance.config/index#tab-statement-list',
+                    ]
+                ]
+            ],
+            [
               'name' => '国家支持',
               'index' => 'setting.country/index',
               'uris' => [
