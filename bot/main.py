@@ -1,12 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 import redis
 import logging
 from config import settings
 from routes import webhook_router
+from metrics import get_metrics
+from logging_config import setup_logging
+from gray_release import GrayReleaseMiddleware
+
+# Setup structured logging
+setup_logging(settings.ENVIRONMENT)
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
@@ -25,6 +31,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add gray release middleware
+app.add_middleware(GrayReleaseMiddleware)
+
 # Initialize Redis connection
 redis_client = redis.Redis(
     host=settings.REDIS_HOST,
@@ -37,19 +46,15 @@ redis_client = redis.Redis(
 # Include routers
 app.include_router(webhook_router)
 
-@app.on_event("startup")
-async def startup_event():
-    """Test Redis connection on startup"""
-    try:
-        redis_client.ping()
-        logger.info("✓ Redis connection successful")
-    except Exception as e:
-        logger.error(f"✗ Redis connection failed: {e}")
-
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "ok"}
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint"""
+    return Response(content=get_metrics(), media_type="text/plain")
 
 if __name__ == "__main__":
     import uvicorn
