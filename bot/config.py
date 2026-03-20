@@ -33,5 +33,14 @@ class Settings:
     # Environment
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
+    
+    # Facebook Configuration
+    FACEBOOK_APP_SECRET: str = os.getenv("FACEBOOK_APP_SECRET", "")
+    FACEBOOK_VERIFY_TOKEN: str = os.getenv("FACEBOOK_VERIFY_TOKEN", "")
+    FACEBOOK_PAGE_ACCESS_TOKEN: str = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN", "")
+    
+    # Instagram Configuration
+    INSTAGRAM_VERIFY_TOKEN: str = os.getenv("INSTAGRAM_VERIFY_TOKEN", "")
+    INSTAGRAM_PAGE_ACCESS_TOKEN: str = os.getenv("INSTAGRAM_PAGE_ACCESS_TOKEN", "")
 
 settings = Settings()

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import redis
 import logging
 from config import settings
+from routes import webhook_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +33,9 @@ redis_client = redis.Redis(
     password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
     decode_responses=True
 )
+
+# Include routers
+app.include_router(webhook_router)
 
 @app.on_event("startup")
 async def startup_event():
