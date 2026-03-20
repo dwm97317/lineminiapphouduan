@@ -13,6 +13,17 @@ from .order_session import (
     ExtractedInfo,
     MessageWithExtraction,
 )
+from .account import (
+    PlatformAccount,
+    PlatformType,
+    AccountStatus,
+    LinkAccountRequest,
+    UnlinkAccountRequest,
+    PlatformAccountResponse,
+    AccountListResponse,
+    UnlinkConfirmationRequest,
+    UnlinkConfirmationResponse,
+)
 
 __all__ = [
     "Message",
@@ -27,4 +38,13 @@ __all__ = [
     "OrderSessionResponse",
     "ExtractedInfo",
     "MessageWithExtraction",
+    "PlatformAccount",
+    "PlatformType",
+    "AccountStatus",
+    "LinkAccountRequest",
+    "UnlinkAccountRequest",
+    "PlatformAccountResponse",
+    "AccountListResponse",
+    "UnlinkConfirmationRequest",
+    "UnlinkConfirmationResponse",
 ]

@@ -4,7 +4,7 @@ from fastapi.responses import Response
 import redis
 import logging
 from config import settings
-from routes import webhook_router, order_session_router
+from routes import webhook_router, order_session_router, account_router, bot_command_router
 from metrics import get_metrics
 from logging_config import setup_logging
 from gray_release import GrayReleaseMiddleware
@@ -46,6 +46,8 @@ redis_client = redis.Redis(
 # Include routers
 app.include_router(webhook_router)
 app.include_router(order_session_router)
+app.include_router(account_router)
+app.include_router(bot_command_router)
 
 @app.get("/health")
 async def health_check():
