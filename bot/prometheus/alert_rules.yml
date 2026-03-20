@@ -1,0 +1,173 @@
+groups:
+  - name: bot_api_alerts
+    interval: 30s
+    rules:
+      # High latency alert (>5s)
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(bot_processing_seconds_bucket[5m])) > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High API latency detected"
+          description: "95th percentile latency is {{ $value }}s (threshold: 5s)"
+          dashboard: "http://grafana:3000/d/bot-api"
+
+      # Very high latency alert (>10s)
+      - alert: VeryHighLatency
+        expr: histogram_quantile(0.95, rate(bot_processing_seconds_bucket[5m])) > 10
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Very high API latency detected"
+          description: "95th percentile latency is {{ $value }}s (threshold: 10s)"
+          dashboard: "http://grafana:3000/d/bot-api"
+
+      # High error rate alert (>10%)
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(bot_messages_total{status="error"}[5m]))
+            /
+            sum(rate(bot_messages_total[5m]))
+          ) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+          dashboard: "http://grafana:3000/d/bot-api"
+
+      # Critical error rate alert (>25%)
+      - alert: CriticalErrorRate
+        expr: |
+          (
+            sum(rate(bot_messages_total{status="error"}[5m]))
+            /
+            sum(rate(bot_messages_total[5m]))
+          ) > 0.25
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Critical error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 25%)"
+          dashboard: "http://grafana:3000/d/bot-api"
+
+      # API instance down
+      - alert: APIInstanceDown
+        expr: up{job=~"api_blue|api_green"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "API instance is down"
+          description: "{{ $labels.instance }} has been down for more than 1 minute"
+          dashboard: "http://grafana:3000/d/bot-api"
+
+      # High message queue
+      - alert: HighMessageQueue
+        expr: bot_sessions_total > 10000
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High message queue detected"
+          description: "Active sessions: {{ $value }} (threshold: 10000)"
+          dashboard: "http://grafana:3000/d/bot-api"
+
+      # Database connection issues
+      - alert: DatabaseConnectionIssues
+        expr: mysql_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection failed"
+          description: "Cannot connect to MySQL database"
+          dashboard: "http://grafana:3000/d/bot-api"
+
+      # Redis connection issues
+      - alert: RedisConnectionIssues
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "Redis connection failed"
+          description: "Cannot connect to Redis cache"
+          dashboard: "http://grafana:3000/d/bot-api"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            container_memory_usage_bytes{name=~"bot_api.*"}
+            /
+            container_spec_memory_limit_bytes{name=~"bot_api.*"}
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 85%)"
+          dashboard: "http://grafana:3000/d/bot-api"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: |
+          (
+            rate(container_cpu_usage_seconds_total{name=~"bot_api.*"}[5m])
+            *
+            on(container_id) group_left()
+            container_spec_cpu_quota{name=~"bot_api.*"}
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value | humanizePercentage }} (threshold: 80%)"
+          dashboard: "http://grafana:3000/d/bot-api"
+
+      # Webhook processing delay
+      - alert: WebhookProcessingDelay
+        expr: histogram_quantile(0.99, rate(bot_processing_seconds_bucket{endpoint="/webhook"}[5m])) > 3
+        for: 2m
+        labels:
+          severity: warning
+          component: webhook
+        annotations:
+          summary: "Webhook processing delay detected"
+          description: "99th percentile webhook latency is {{ $value }}s (threshold: 3s)"
+          dashboard: "http://grafana:3000/d/bot-api"
+
+      # Package processing failures
+      - alert: PackageProcessingFailures
+        expr: |
+          (
+            sum(rate(bot_packages_reported{status="failed"}[5m]))
+            /
+            sum(rate(bot_packages_reported[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: packages
+        annotations:
+          summary: "High package processing failure rate"
+          description: "Failure rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          dashboard: "http://grafana:3000/d/bot-api"
