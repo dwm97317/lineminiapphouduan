@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Giả Lập Bot - Chuyên Trị Tester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .chat-container { scroll-behavior: smooth; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-200 h-screen flex justify-center items-center p-4">
+
+    <!-- KHUNG CHAT ĐIỆN THOẠI -->
+    <div class="w-full max-w-md h-[85vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border-4 border-slate-800">
+        
+        <!-- HEADER -->
+        <div class="bg-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-md z-10">
+            <div class="flex items-center space-x-2">
+                <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 font-bold text-xl">🤖</div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">Bot Nhận Đơn</h1>
+                    <span class="text-xs text-blue-200 flex items-center">
+                        <span id="network-status-dot" class="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
+                        <span id="network-status-text">Đang hoạt động</span>
+                    </span>
+                </div>
+            </div>
+            <!-- Toggle Mạng -->
+            <button onclick="toggleNetwork()" id="btn-network" class="text-xs bg-red-500 hover:bg-red-600 px-2 py-1 rounded shadow" title="Mô phỏng đứt cáp mạng">Ngắt Mạng Mạng</button>
+        </div>
+
+        <!-- CONTROL PANEL (Shop/Tenant Switcher) -->
+        <div class="bg-slate-100 border-b px-4 py-2 flex justify-between items-center text-xs">
+            <span class="text-slate-500 font-medium">Bạn đang mua ở:</span>
+            <select id="shop-selector" class="bg-white border rounded px-2 py-1 text-slate-700 outline-none" onchange="switchShop()">
+                <option value="Shop A">Shop A (Mặc định)</option>
+                <option value="Shop B">Shop B (Đổi Shop)</option>
+            </select>
+        </div>
+
+        <!-- CHAT AREA -->
+        <div id="chat-box" class="chat-container flex-1 overflow-y-auto p-4 space-y-4 bg-[#f0f2f5]">
+            <!-- Lời chào mặc định -->
+            <div class="flex">
+                <div class="bg-white text-slate-800 rounded-lg rounded-tl-none p-3 shadow-sm max-w-[85%] text-sm">
+                    Xin chào! Tôi là Bot nhận đơn hàng. <br><br>
+                    ⚠️ <b>Quý khách chưa liên kết tài khoản.</b><br>
+                    Vui lòng gửi <b>Customer ID</b> của bạn để tôi nhận dạng <i>(Mẹo cho Tester: Nhập CUST_123 để Pass, nhập sai báo lỗi)</i>.
+                </div>
+            </div>
+        </div>
+
+        <!-- INPUT BOX -->
+        <div class="bg-white p-3 border-t flex items-center space-x-2">
+            <input type="text" id="chat-input" class="flex-1 bg-slate-100 rounded-full px-4 py-2 text-sm outline-none border border-transparent focus:border-blue-400" placeholder="Soạn tin nhắn..." onkeypress="handleEnter(event)">
+            <button onclick="sendMessage()" class="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-blue-700 transition">
+                <svg class="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC (Mô phỏng Hệ thống Cấu Trúc Bot) -->
+    <script>
+        // --- TRẠNG THÁI (STATE) CỦA HỆ THỐNG ---
+        let state = {
+            isLinked: false,
+            customerName: '',
+            isOnline: true,
+            currentShop: 'Shop A',
+            sessions: { // Giả lập dữ liệu các phiên (sessions) độc lập cho từng shop
+                'Shop A': { status: 'idle', barcodes: [] },
+                'Shop B': { status: 'idle', barcodes: [] }
+            }
+        };
+
+        const chatBox = document.getElementById('chat-box');
+        const chatInput = document.getElementById('chat-input');
+        
+        // --- HÀM VẼ GIAO DIỆN ---
+        function appendUserMessage(text) {
+            const html = `
+            <div class="flex justify-end">
+                <div class="bg-blue-600 text-white rounded-lg rounded-tr-none p-3 shadow-sm max-w-[85%] text-sm selection:bg-blue-300">
+                    ${text}
+                </div>
+            </div>`;
+            chatBox.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+        }
+
+        function appendBotMessage(text, isError = false) {
+            const colorClass = isError ? "bg-red-50 border border-red-200 text-red-800" : "bg-white text-slate-800";
+            const html = `
+            <div class="flex">
+                <div class="${colorClass} rounded-lg rounded-tl-none p-3 shadow-sm max-w-[85%] text-sm">
+                    ${text}
+                </div>
+            </div>`;
+            chatBox.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 100);
+        }
+
+        // --- HÀM ĐIỀU KHIỂN & SỰ KIỆN ---
+        function handleEnter(e) {
+            if(e.key === 'Enter') sendMessage();
+        }
+
+        function toggleNetwork() {
+            state.isOnline = !state.isOnline;
+            const btn = document.getElementById('btn-network');
+            const dot = document.getElementById('network-status-dot');
+            const txt = document.getElementById('network-status-text');
+            
+            if(state.isOnline) {
+                btn.textContent = "Ngắt Mạng";
+                btn.className = "text-xs bg-red-500 hover:bg-red-600 px-2 py-1 rounded shadow";
+                dot.className = "w-2 h-2 bg-green-400 rounded-full mr-1";
+                txt.textContent = "Đang hoạt động";
+            } else {
+                btn.textContent = "Bật Mạng Trở Lại";
+                btn.className = "text-xs bg-green-500 hover:bg-green-600 px-2 py-1 rounded shadow";
+                dot.className = "w-2 h-2 bg-red-500 rounded-full mr-1";
+                txt.textContent = "Mất kết nối API (Timemout)";
+            }
+        }
+
+        function switchShop() {
+            const newShop = document.getElementById('shop-selector').value;
+            state.currentShop = newShop;
+            appendBotMessage(`<i>[Hệ thống] Bạn đã chuyển khung chat sang <b>${newShop}</b>. Dữ liệu của 2 shop hoàn toàn độc lập với nhau (Test case: Cách ly Đa Tenant).</i>`);
+            
+            // Nếu đổi shop mà shop cũ đang dở dang đơn
+            const oldShop = newShop === 'Shop A' ? 'Shop B' : 'Shop A';
+            if(state.sessions[oldShop].status === 'pending') {
+                appendBotMessage(`⚠️ Bạn đang có một đơn hàng dở dang chưa tạo xong ở <b>${oldShop}</b>. Bạn muốn tạo đơn mới ở <b>${newShop}</b> không? (Gõ "Đơn mới" để xác nhận)`);
+            }
+        }
+
+        // --- LÕI LOGIC CỦA BOT TƯƠNG ĐƯƠNG BACKEND ---
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if(!text) return;
+            appendUserMessage(text);
+            chatInput.value = '';
+
+            // TEST CASE: Mất kết nối DB / Timeout Mạng
+            if(!state.isOnline) {
+                setTimeout(() => {
+                    appendBotMessage("⏳ Đang gửi request... (Retry 1/3)");
+                    setTimeout(() => {
+                        appendBotMessage("❌ <b>Lỗi kết nối (Timeout)!</b> Mạng chậm hoặc máy chủ Meta API không phản hồi. Vui lòng thử lại sau.", true);
+                    }, 1500);
+                }, 500);
+                return;
+            }
+
+            // Giả lập thời gian load (Latency thật)
+            setTimeout(() => { processBotLogic(text); }, 800);
+        }
+
+        function processBotLogic(text) {
+            const input = text.toLowerCase();
+            const session = state.sessions[state.currentShop];
+
+            // 1. CHƯA LIÊN KẾT TÀI KHOẢN
+            if(!state.isLinked) {
+                if(input === 'cust_123') {
+                    state.isLinked = true;
+                    state.customerName = 'Bác Ba Phi';
+                    appendBotMessage(`✅ <b>Liên kết thành công!</b><br>Chào mừng quý khách <b>${state.customerName}</b>. Bây giờ bạn có thể chat "đặt hàng", "mua" để tạo mã vận đơn.`);
+                } else {
+                    appendBotMessage(`❌ <b>Customer ID không hợp lệ hoặc không tồn tại!</b><br>Tài khoản của bạn chưa được liên kết. Vui lòng thử mã khác.`, true);
+                }
+                return;
+            }
+
+            // 2. KHÁCH GÕ "ĐƠN MỚI" (ANTI-COLLISION)
+            if(input === 'đơn mới' || input === 'don moi') {
+                session.status = 'pending';
+                session.barcodes = [];
+                appendBotMessage(`✅ Đã đóng băng phiên trước đó. <b>Khởi tạo Đơn Mới thành công cho ${state.currentShop}!</b><br>Vui lòng gửi <b>Mã bưu kiện (Barcode)</b> để gắn vào đơn này.`);
+                return;
+            }
+
+            // 3. TẠO PHIÊN ĐẶT HÀNG (SESSION)
+            if(session.status === 'idle') {
+                if(input.includes('đặt hàng') || input.includes('mua') || input.includes('tạo đơn')) {
+                    session.status = 'pending';
+                    session.barcodes = []; // Reset mã
+                    appendBotMessage(`🛒 <b>Đã bắt đầu phiên tạo đơn cho ${state.currentShop}.</b><br>Vui lòng gửi cho tôi <b>Mã Bưu Kiện (ví dụ: 12345678)</b> để bóc tách thông tin.`);
+                } else {
+                    appendBotMessage(`Tôi là Bot tự động. Bạn muốn gì? Nếu muốn gửi đơn hãy gõ "đặt hàng" nhé!`);
+                }
+                return;
+            }
+
+            // 4. KIỂM TRA MÃ BƯU KIỆN (BARCODE LOGIC)
+            if(session.status === 'pending') {
+                // Giả lập Regex kiểm tra định dạng mã (Chỉ cho phép số và chữ, độ dài 5-15 ký tự, không ký tự đặc biệt)
+                const isValidFormat = /^[A-Za-z0-9]{5,15}$/.test(text);
+                
+                if(!isValidFormat) {
+                    // Test Case: Nhập Barcode mã độc (Tấn công SQL Injection) hoặc sai chuẩn
+                    if(text.includes("'") || text.includes(";")) {
+                        appendBotMessage(`🛡️ <b>[Cảnh báo Bảo mật]</b> Hệ thống phát hiện ký tự lạ. Ký tự đã bị Sanitize (làm sạch). Định dạng mã bưu kiện không hợp lệ!`, true);
+                    } else {
+                        appendBotMessage(`❌ <b>Sai định dạng mã bưu kiện!</b> Yêu cầu độ dài 5-15 ký tự, chỉ chứa chữ và số.`, true);
+                    }
+                    return;
+                }
+
+                // Test Case: Check trùng lặp (Duplicate)
+                // Duyệt xem mã này đã từng được nhập vào *bất kỳ* shop nào chưa
+                const allBarcodes = [...state.sessions['Shop A'].barcodes, ...state.sessions['Shop B'].barcodes];
+                if(allBarcodes.includes(text)) {
+                    appendBotMessage(`❌ <b>Lỗi! Mã bưu kiện [${text}] ĐÃ TỒN TẠI trên hệ thống.</b><br>Từ chối thêm vào đơn mới.`, true);
+                    return;
+                }
+
+                // Nếu mọi thứ đều qua -> Lưu thành công
+                session.barcodes.push(text);
+                appendBotMessage(`📦 <b>Đã thêm thành công mã bưu kiện:</b> ${text}<br>Gửi thêm mã nếu cần, hoặc gõ "Xong" để chốt đơn!`);
+                
+                // Cảnh báo nếu đang dùng wxapp_id khác
+                if(state.currentShop === 'Shop B') {
+                    console.log(`[Log Hệ thống] Mã ${text} đã được Tenant 2 (Shop B) thêm. Tenant 1 không can thiệp được.`);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
