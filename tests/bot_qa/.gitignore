@@ -1,0 +1,20 @@
+# Test logs and temporary files
+*.log
+*.tmp
+.cache/
+tmp/
+
+# Coverage reports (if using PHPUnit later)
+coverage/
+.phpunit.result.cache
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
